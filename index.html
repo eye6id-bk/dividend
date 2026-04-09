@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4f6fb">
-<title>배당 복리 계산기 v1.4</title>
+<title>배당 복리 계산기 v1.5 (세금반영)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root{
@@ -186,7 +186,7 @@ tr:nth-child(even) td{background:var(--card2);}
     <button class="mkt-btn"   id="mkt-ks" onclick="setMkt('ks')">🇰🇷 코스피</button>
     <button class="mkt-btn"   id="mkt-kq" onclick="setMkt('kq')">🇰🇷 코스닥</button>
   </div>
-  <div class="mkt-hint" id="mkt-hint">예: SCHD, QQQ, JEPI, CONY, TSLA</div>
+  <div class="mkt-hint" id="mkt-hint">예: SCHD, QQQ, JEPI, 삼성전자, 맥쿼리인프라</div>
 </div>
 
 <div class="card">
@@ -256,7 +256,7 @@ tr:nth-child(even) td{background:var(--card2);}
     <div class="m-pri" id="c-shares">—</div>
   </div>
   <div class="metric">
-    <span class="m-lbl">연간 배당금</span>
+    <span class="m-lbl">연간 배당금(세후)</span>
     <div class="m-pri green" id="c-divyr">—</div>
     <div class="m-alt"       id="c-divyr-alt"></div>
   </div>
@@ -295,7 +295,14 @@ tr:nth-child(even) td{background:var(--card2);}
   <span class="tg-lbl">DRIP:</span>
   <button class="tbtn on" id="btn-drip-on"  onclick="setDrip(true)">재투자</button>
   <button class="tbtn"    id="btn-drip-off" onclick="setDrip(false)">현금수령</button>
-  <span class="tg-lbl" style="margin-left:4px">시나리오:</span>
+  
+  <span class="tg-lbl" style="margin-left:4px">세금:</span>
+  <button class="tbtn on" id="btn-tax-on"  onclick="setTax(true)">반영(15~15.4%)</button>
+  <button class="tbtn"    id="btn-tax-off" onclick="setTax(false)">미반영</button>
+</div>
+
+<div class="tgrp">
+  <span class="tg-lbl">시나리오:</span>
   <button class="tbtn bear" id="btn-bear" onclick="setScenario('bear')">약세 0%</button>
   <button class="tbtn base" id="btn-base" onclick="setScenario('base')">기본 6%</button>
   <button class="tbtn bull on" id="btn-bull" onclick="setScenario('bull')">강세 10%</button>
@@ -313,7 +320,7 @@ tr:nth-child(even) td{background:var(--card2);}
 <div class="card pad">
   <div class="legend">
     <div class="leg"><div class="ldot" style="background:#2563eb"></div>주가상승</div>
-    <div class="leg"><div class="ldot" style="background:#059669"></div>배당누계</div>
+    <div class="leg"><div class="ldot" style="background:#059669"></div>배당누계(세후)</div>
     <div class="leg"><div class="ldot" style="background:#d1d5db"></div>원금</div>
   </div>
   <div class="chart-wrap"><canvas id="myChart"></canvas></div>
@@ -332,7 +339,7 @@ tr:nth-child(even) td{background:var(--card2);}
   </div>
 </div>
 
-<p class="disc">v1.4 · 시뮬레이션 목적 · 투자 권유 아님 · 세금·수수료 미반영 · Yahoo Finance 기준</p>
+<p class="disc">v1.5 · 시뮬레이션 목적 · 양도소득세 미반영 · 배당소득세(US 15%, KR 15.4%) 반영 · Yahoo Finance 기준</p>
 </div>
 
 <script>
@@ -342,6 +349,7 @@ tr:nth-child(even) td{background:var(--card2);}
 var mode = 'krw';   
 var mkt  = 'us';    
 var drip = true;
+var applyTax = true; // 세금 적용 여부
 var isKoreanStock = false;  
 var curP = 30.58;   
 var myChart = null;
@@ -357,7 +365,6 @@ var ENDPOINTS = [
   'https://query2.finance.yahoo.com/v8/finance/chart/'
 ];
 
-// 속도 개선: 안정적인 프록시로 최적화
 var PROXIES = [
   function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
   function(u){ return 'https://corsproxy.io/?url=' + encodeURIComponent(u); },
@@ -392,14 +399,15 @@ var KR_STOCKS = {
   '펄어비스':'263750','pearlabyss':'263750',
   '카카오게임즈':'293490',
   '엔씨소프트':'036570','ncsoft':'036570','엔씨':'036570',
-  '넷마블':'251270','netmarble':'251270'
+  '넷마블':'251270','netmarble':'251270',
+  '맥쿼리인프라':'088980','맥쿼리':'088980'
 };
 
 var KR_TICKER_MKT = {
   '005930':'ks','000660':'ks','005380':'ks','373220':'ks','207940':'ks',
   '105560':'ks','068270':'ks','055550':'ks','051910':'ks','323410':'ks',
   '086790':'ks','000270':'ks','005490':'ks','006400':'ks','066570':'ks',
-  '012330':'ks','028260':'ks','096770':'ks','032830':'ks',
+  '012330':'ks','028260':'ks','096770':'ks','032830':'ks','088980':'ks',
   '035720':'kq','091990':'kq','247540':'kq','086520':'kq','066970':'kq',
   '259960':'kq','263750':'kq','293490':'kq','036570':'kq','251270':'kq'
 };
@@ -407,7 +415,7 @@ var KR_TICKER_MKT = {
 var MKT_SUFFIX = {us:'', ks:'.KS', kq:'.KQ'};
 var MKT_HINTS  = {
   us: '예: SCHD, QQQ, JEPI, CONY, TSLA, NVDA',
-  ks: '티커: 005930 또는 이름: 삼성전자, 현대차, SK하이닉스',
+  ks: '티커: 005930 또는 이름: 삼성전자, 맥쿼리인프라',
   kq: '티커: 035720 또는 이름: 카카오, 에코프로, 크래프톤'
 };
 
@@ -503,7 +511,7 @@ function renderTable(s) {
     + '<th style="text-align:left">' + (monthly ? '월' : '시점') + '</th>'
     + '<th>주가</th><th>주수</th>'
     + '<th>평가금액</th>'
-    + '<th>' + (drip ? '배당누계' : '잔여현금') + '</th><th>수익률</th><th>' + (monthly ? '월배당' : '연배당') + '</th>'
+    + '<th>' + (drip ? '배당누계(세후)' : '잔여현금') + '</th><th>수익률</th><th>' + (monthly ? '월배당' : '연배당') + '</th>'
     + '</tr>';
   document.getElementById('tbl-head').innerHTML = headHtml;
 
@@ -563,7 +571,7 @@ document.getElementById('rate-inp').addEventListener('input', function() {
 });
 
 // ═══════════════════════════════════════════
-//  TICKER FETCH (병렬 처리 방식 적용 - 속도 대폭 개선)
+//  TICKER FETCH (병렬 처리 방식)
 // ═══════════════════════════════════════════
 document.getElementById('ticker-input').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') fetchTicker();
@@ -599,7 +607,6 @@ function buildUrls(ticker, yrs) {
   return urls;
 }
 
-// 속도 최적화: 병렬 Race 로직 적용 (가장 빨리 응답하는 데이터를 바로 사용)
 function tryUrlFast(urls) {
   return new Promise(function(resolve, reject) {
     var errors = 0;
@@ -672,7 +679,6 @@ function fetchTicker() {
   document.getElementById('sb-name-row').style.display = 'none';
   setSt('search-st', '<span class="spin"></span> 검색 중 (' + ticker + ')…', 'ld');
 
-  // 병렬 호출 실행
   tryUrlFast(buildUrls(ticker, yrs))
     .then(function(data) {
       var r    = data.chart.result[0];
@@ -710,7 +716,6 @@ function fetchTicker() {
       var refP    = rawP > 0 ? rawP : (valid.length ? valid[valid.length-1].v : 1);
       var ttmY    = (refP > 0 && ttmSum > 0) ? (ttmSum / refP) * 100 : 0;
 
-      // 배당성장률 계산 방식 개선 (연 3회 이상 정상 배당금 지급 기준)
       var byY = {}, countY = {};
       divList.forEach(function(d) {
         var y = new Date(d.date * 1000).getFullYear();
@@ -784,7 +789,7 @@ document.getElementById('inp-years').addEventListener('input', function() {
 });
 
 // ═══════════════════════════════════════════
-//  DRIP / SCENARIO
+//  TOGGLES
 // ═══════════════════════════════════════════
 function setDrip(v) {
   drip = v;
@@ -793,6 +798,15 @@ function setDrip(v) {
   document.getElementById('wdraw-row').className    = 'wdraw' + (v ? '' : ' show');
   update();
 }
+
+// 세금 토글 기능 추가
+function setTax(v) {
+  applyTax = v;
+  document.getElementById('btn-tax-on').className  = 'tbtn' + (v  ? ' on' : '');
+  document.getElementById('btn-tax-off').className = 'tbtn' + (!v ? ' on' : '');
+  update();
+}
+
 function setScenario(s) {
   ['bear','base','bull'].forEach(function(id) { document.getElementById('btn-' + id).className = 'tbtn ' + id; });
   document.getElementById('btn-' + s).className = 'tbtn ' + s + ' on';
@@ -802,7 +816,7 @@ function setScenario(s) {
 }
 
 // ═══════════════════════════════════════════
-//  CALCULATION (현금수령 및 인출 로직 수정 적용)
+//  CALCULATION (배당소득세 차감 로직 추가)
 // ═══════════════════════════════════════════
 function update() {
   var P  = usdInit;
@@ -814,6 +828,12 @@ function update() {
   var dG = parseFloat(document.getElementById('sl-dgrowth').value) / 100;
   var mG = Math.pow(1 + aG, 1/12) - 1;
   var EXP = 0.0006;
+  
+  // 시장별 배당소득세율 결정 (미국 15%, 한국 15.4%)
+  var taxRate = 0;
+  if (applyTax) {
+    taxRate = (mkt === 'us') ? 0.15 : 0.154;
+  }
 
   document.getElementById('o-growth').textContent  = (aG * 100).toFixed(1) + '%';
   document.getElementById('o-dyield').textContent  = (dY * 100).toFixed(2) + '%';
@@ -824,8 +844,8 @@ function update() {
   var price = curP, shares = price > 0 ? P / price : 0;
   var inv = P, cash = 0, curDY = dY;
   
-  var cumDiv = 0;          // 지금까지 발생한 총 누적 배당금
-  var totalWithdrawn = 0;  // 사용자가 실제로 계좌에서 인출해 간 총 금액
+  var cumDiv = 0;          
+  var totalWithdrawn = 0;  
 
   var labels = [], pA = [], dA = [], gA = [], rows = [];
   var totalSteps = isMonthly ? Y * 12 : Y * 12;
@@ -835,24 +855,24 @@ function update() {
       price *= (1 + mG) * (1 - EXP / 12);
       if (M > 0) { shares += M / price; inv += M; }
       
-      // 분기 배당 지급
+      // 분기 배당 지급 및 세금 차감 로직
       if (m % 3 === 0) {
-        var qd = shares * curDY * price / 4;
-        cumDiv += qd;
+        var grossDiv = shares * curDY * price / 4;  // 세전 배당금
+        var netDiv = grossDiv * (1 - taxRate);      // 세후 배당금
+        cumDiv += netDiv; 
+        
         if (drip) {
-          shares += qd / price;
+          shares += netDiv / price; // 세후 배당금으로만 재투자
         } else {
-          cash += qd; 
+          cash += netDiv; 
         }
       }
       
-      // 현금수령 모드에서의 월 인출 처리 (논리 개선)
       if (!drip && W > 0) {
         if (cash >= W) {
           cash -= W;
           totalWithdrawn += W;
         } else {
-          // 현금이 인출액보다 부족할 경우 주식을 매도하여 충당
           var shortfall = W - cash;
           totalWithdrawn += cash;
           cash = 0;
@@ -873,14 +893,14 @@ function update() {
     var doRecord = isMonthly ? true : (m % 12 === 0);
     if (doRecord) {
       var step = isMonthly ? m : m / 12;
-      var tv = shares * price + cash; // 최종 평가금액 (보유주식가치 + 잔여현금)
+      var tv = shares * price + cash; 
       
-      // 차트용 분리 (차트의 세 막대 합이 항상 tv와 일치하도록 보정)
       var dChart = drip ? cumDiv : cash;
       var pChart = inv;
-      var gChart = tv - inv - dChart; // 총 수익 (자본차익)
+      var gChart = tv - inv - dChart; 
 
-      var adVal = isMonthly ? shares * price * curDY / 12 : shares * price * curDY;
+      // 연배당 표시도 세후 기준으로 출력
+      var adVal = isMonthly ? (shares * price * curDY * (1 - taxRate)) / 12 : (shares * price * curDY * (1 - taxRate));
 
       labels.push(isMonthly ? step + '개월' : step + '년');
       pA.push(Math.round(pChart)); 
@@ -895,7 +915,6 @@ function update() {
         rows.push({
           yr: step, price: price, shares: shares, tv: tv, inv: inv,
           da: dChart, ad: adVal, 
-          // 수익률 계산 시 인출액을 더해야 올바른 자산 성장률 판단 가능
           ret: inv > 0 ? (tv + totalWithdrawn - inv) / inv * 100 : 0
         });
       }
@@ -906,8 +925,8 @@ function update() {
   sim = {
     fin: finalTv, 
     inv: inv, 
-    profit: (finalTv + totalWithdrawn) - inv, // 총수익 = 평가금액 + 인출현금 - 원금
-    annDiv: shares * price * curDY,
+    profit: (finalTv + totalWithdrawn) - inv, 
+    annDiv: shares * price * curDY * (1 - taxRate), // 최종 표시 연간 배당금도 세후 기준
     retPct: inv > 0 ? ((finalTv + totalWithdrawn) - inv) / inv * 100 : 0,
     shares: shares, 
     rows: rows, labels: labels, pA: pA, dA: dA, gA: gA
@@ -925,7 +944,7 @@ function update() {
       type: 'bar',
       data: { labels: labels, datasets: [
         { label:'주가상승', data:gA, backgroundColor:'#2563eb', stack:'a' },
-        { label:(drip ? '배당누계' : '잔여현금'), data:dA, backgroundColor:'#059669', stack:'a' },
+        { label:(drip ? '배당누계(세후)' : '잔여현금'), data:dA, backgroundColor:'#059669', stack:'a' },
         { label:'원금',     data:pA, backgroundColor:'#d1d5db', stack:'a' }
       ]},
       options: {
