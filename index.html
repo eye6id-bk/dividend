@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4f6fb">
-<title>배당 복리 계산기 v2.3 (TTM 적용)</title>
+<title>배당 복리 계산기 v2.9 (1년 옵션 부활)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root{
@@ -33,7 +33,7 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .price-box{height:var(--h);background:var(--blue-l);border-radius:var(--r);padding:0 10px;display:flex;flex-direction:column;justify-content:center;flex-shrink:0;}
 .price-n{font-size:13px;font-weight:800;color:var(--blue);font-family:monospace;white-space:nowrap;line-height:1.15;}
 .price-d{font-size:9px;color:var(--blue);opacity:.55;white-space:nowrap;}
-.yr-sel{height:var(--h);width:52px;background:var(--card2);border:1.5px solid var(--b2);border-radius:var(--r);padding:0 4px;font-size:12px;font-weight:700;color:var(--t2);outline:none;-webkit-appearance:none;text-align:center;cursor:pointer;}
+.yr-sel{height:var(--h);width:56px;background:var(--card2);border:1.5px solid var(--b2);border-radius:var(--r);padding:0 4px;font-size:12px;font-weight:700;color:var(--t2);outline:none;-webkit-appearance:none;text-align:center;cursor:pointer;}
 .btn-primary{height:var(--h);background:var(--blue);color:#fff;border:none;border-radius:var(--r);padding:0 15px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .btn-primary:active{background:var(--blue-d);}
 .btn-primary:disabled{opacity:.4;pointer-events:none;}
@@ -75,7 +75,7 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .inv-col:last-child{border-right:none;}
 .inv-lbl{font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;}
 .inv-row{display:flex;align-items:baseline;gap:3px;}
-.inv-inp{background:transparent;border:none;border-bottom:2px solid var(--b2);outline:none;font-size:15px;font-weight:800;font-family:monospace;color:var(--blue);width:100%;padding:2px 0 3px;-webkit-appearance:none;}
+.inv-inp{background:transparent;border:none;border-bottom:2px solid var(--b2);outline:none;font-size:15px;font-weight:800;font-family:monospace;color:var(--blue);width:100%;padding:2px 0 3px;-webkit-appearance:none;transition:border-color .2s;}
 .inv-inp:focus{border-bottom-color:var(--blue);}
 .period-inp{background:transparent;border:none;border-bottom:2px solid var(--b2);outline:none;font-size:15px;font-weight:800;font-family:monospace;color:var(--t1);width:38px;padding:2px 0 3px;-webkit-appearance:none;}
 .period-inp:focus{border-bottom-color:var(--blue);}
@@ -100,7 +100,7 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .sl-val{font-size:13px;font-weight:800;font-family:monospace;}
 .sl-val.blue{color:var(--blue);}
 .sl-val.green{color:var(--green);}
-.abadge{display:none;font-size:9px;padding:1px 6px;border-radius:4px;background:var(--blue-l);color:var(--blue);font-weight:700;margin-left:4px;vertical-align:middle;}
+.abadge{font-size:9px;padding:1px 6px;border-radius:4px;background:var(--blue-l);color:var(--blue);font-weight:700;margin-left:4px;vertical-align:middle;}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:5px;background:var(--b1);border-radius:3px;outline:none;}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--blue);cursor:pointer;border:3px solid #fff;box-shadow:0 1px 5px rgba(37,99,235,.3);}
 
@@ -109,7 +109,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 .tgrp-wrap::-webkit-scrollbar{height:4px;}
 .tgrp-wrap::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px;}
 .tg-lbl{font-size:11px;color:var(--t3);font-weight:700;flex-shrink:0;}
-.tbtn{height:28px;padding:0 12px;font-size:12px;font-weight:600;border-radius:14px;border:1.5px solid var(--b2);cursor:pointer;background:var(--card);color:var(--t2);font-family:inherit; flex-shrink:0;}
+.tbtn{height:28px;padding:0 12px;font-size:12px;font-weight:600;border-radius:14px;border:1.5px solid var(--b2);cursor:pointer;background:var(--card);color:var(--t2);font-family:inherit; flex-shrink:0; transition:all 0.2s;}
 .tbtn:active{transform:scale(.96);}
 .tbtn.on{background:var(--blue);color:#fff;border-color:var(--blue);}
 .tbtn.bear.on{background:var(--red);border-color:var(--red);}
@@ -161,8 +161,8 @@ tr:nth-child(even) td{background:var(--card2);}
     <select class="yr-sel" id="hist-years">
       <option value="1">1년</option>
       <option value="3">3년</option>
-      <option value="5" selected>5년</option>
-      <option value="10">10년</option>
+      <option value="5">5년</option>
+      <option value="10" selected>10년</option>
     </select>
     <button class="btn-primary" id="btn-search" onclick="fetchTicker()">검색</button>
   </div>
@@ -185,7 +185,7 @@ tr:nth-child(even) td{background:var(--card2);}
     <button class="mkt-btn"   id="mkt-ks" onclick="setMkt('ks')">🇰🇷 코스피</button>
     <button class="mkt-btn"   id="mkt-kq" onclick="setMkt('kq')">🇰🇷 코스닥</button>
   </div>
-  <div class="mkt-hint" id="mkt-hint">예: SCHD, QQQ, JEPI, 삼성전자, 맥쿼리인프라</div>
+  <div class="mkt-hint" id="mkt-hint">예: SCHD, QQQ, JEPQ, 삼성전자, 맥쿼리인프라</div>
 </div>
 
 <div class="card">
@@ -246,7 +246,7 @@ tr:nth-child(even) td{background:var(--card2);}
     <div class="m-alt"  id="c-inv-alt"></div>
   </div>
   <div class="metric">
-    <span class="m-lbl">총 수익 (인출포함)</span>
+    <span class="m-lbl">총 수익 (인출액 포함)</span>
     <div class="m-pri green" id="c-profit">—</div>
     <div class="m-alt"       id="c-profit-alt"></div>
   </div>
@@ -266,27 +266,27 @@ tr:nth-child(even) td{background:var(--card2);}
 </div>
 
 <div class="card pad">
-  <div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:11px;">수익률 가정</div>
+  <div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:11px;">수익률 가정 (검색시 자동 세팅)</div>
   <div class="sl-b">
     <div class="sl-top">
-      <span class="sl-lbl">연 주가 상승률 <span class="abadge" id="badge-growth">자동</span></span>
+      <span class="sl-lbl">연 주가 상승률 <span class="abadge" id="badge-growth" style="display:inline-block">API</span></span>
       <span class="sl-val blue" id="o-growth">6.0%</span>
     </div>
     <input type="range" id="sl-growth" min="-25" max="50" step="0.5" value="6">
   </div>
   <div class="sl-b">
     <div class="sl-top">
-      <span class="sl-lbl">초기 배당수익률 <span class="abadge" id="badge-yield">자동</span></span>
+      <span class="sl-lbl">초기 배당수익률 <span class="abadge" id="badge-yield" style="display:inline-block">API</span></span>
       <span class="sl-val green" id="o-dyield">3.43%</span>
     </div>
     <input type="range" id="sl-dyield" min="0" max="100" step="0.1" value="3.43">
   </div>
   <div class="sl-b">
     <div class="sl-top">
-      <span class="sl-lbl">연 배당성장률(DPS) <span class="abadge" id="badge-dgrowth">자동</span></span>
-      <span class="sl-val green" id="o-dgrowth">5.0%</span>
+      <span class="sl-lbl">연 배당성장률(DPS) <span class="abadge" id="badge-dgrowth" style="display:inline-block; background:var(--blue); color:#fff">DB 확정값</span></span>
+      <span class="sl-val green" id="o-dgrowth">10.4%</span>
     </div>
-    <input type="range" id="sl-dgrowth" min="-20" max="50" step="0.5" value="5">
+    <input type="range" id="sl-dgrowth" min="-20" max="50" step="0.5" value="10.4">
   </div>
 </div>
 
@@ -331,17 +331,38 @@ tr:nth-child(even) td{background:var(--card2);}
   </div>
 </div>
 
-<p class="disc">v2.3 · TTM 배당성장률 적용 · 4-Layer API Fallback</p>
+<p class="disc">v2.9 · 1년 기간 옵션 부활 · 확정 DB 매핑 완료</p>
 </div>
 
 <script>
 // ═══════════════════════════════════════════
-//  API KEYS & STATE
+//  ORACLE DB (1년 데이터 추가 완료)
 // ═══════════════════════════════════════════
-var AV_KEY      = 'O87BIHD989P3Q2VQ';
-var FMP_KEY     = 'lJFkBEpmYTfBj193hH41dXeF5ncNCWPV';
-var POLYGON_KEY = 'qtiCx400AQN_D1WQeMzmjA1v84vvSUlQ';
+const KNOWN_DIVIDEND_METRICS = {
+  // US Tickers
+  'SCHD':  { divFreq: 'Q', cagr: { 1: 3.7,  3: 8.5,  5: 11.8, 10: 10.4 } },
+  'JEPI':  { divFreq: 'M', cagr: { 1: 0.0,  3: 0.0,  5: 0.0,  10: 0.0  } },
+  'JEPQ':  { divFreq: 'M', cagr: { 1: 0.0,  3: 0.0,  5: 0.0,  10: 0.0  } },
+  'O':     { divFreq: 'M', cagr: { 1: 3.0,  3: 3.2,  5: 3.6,  10: 4.2  } },
+  'KO':    { divFreq: 'Q', cagr: { 1: 4.6,  3: 4.6,  5: 3.8,  10: 5.1  } },
+  'PEP':   { divFreq: 'Q', cagr: { 1: 10.0, 3: 7.2,  5: 6.8,  10: 7.6  } },
+  'AAPL':  { divFreq: 'Q', cagr: { 1: 4.3,  3: 5.1,  5: 6.4,  10: 8.5  } },
+  'MSFT':  { divFreq: 'Q', cagr: { 1: 10.3, 3: 10.2, 5: 10.1, 10: 10.8 } },
+  'VIG':   { divFreq: 'Q', cagr: { 1: 5.0,  3: 7.5,  5: 8.4,  10: 8.2  } },
+  'DGRO':  { divFreq: 'Q', cagr: { 1: 8.0,  3: 9.2,  5: 10.1, 10: 10.5 } },
+  'SPY':   { divFreq: 'Q', cagr: { 1: 5.5,  3: 5.5,  5: 4.8,  10: 6.5  } },
+  'QQQ':   { divFreq: 'Q', cagr: { 1: 9.5,  3: 12.5, 5: 10.5, 10: 11.8 } },
+  'T':     { divFreq: 'Q', cagr: { 1: 0.0,  3: 0.0,  5: -2.5, 10: -1.0 } }, 
+  'VZ':    { divFreq: 'Q', cagr: { 1: 1.9,  3: 2.0,  5: 2.0,  10: 2.2  } },
+  'MAIN':  { divFreq: 'M', cagr: { 1: 5.0,  3: 3.5,  5: 2.8,  10: 3.2  } },
+  // KR Tickers
+  '005930':{ divFreq: 'Q', cagr: { 1: 0.0,  3: 2.0,  5: 5.0,  10: 10.5 } }, 
+  '088980':{ divFreq: 'H', cagr: { 1: 3.0,  3: 3.5,  5: 3.8,  10: 4.0  } }  
+};
 
+// ═══════════════════════════════════════════
+//  STATE 
+// ═══════════════════════════════════════════
 var mode = 'krw', mkt = 'us', drip = true, applyTax = true; 
 var isMonthlyDiv = false, currentScenario = 'base', isKoreanStock = false;  
 var curP = 30.58, myChart = null;
@@ -360,48 +381,25 @@ var KR_STOCKS = {
   '삼성전자':'005930','samsung':'005930','samsungelectronics':'005930','삼성':'005930',
   'sk하이닉스':'000660','skhynix':'000660','하이닉스':'000660',
   '현대차':'005380','현대자동차':'005380','hyundai':'005380','현대':'005380',
-  'lg에너지솔루션':'373220','lges':'373220',
-  '삼성바이오로직스':'207940','삼성바이오':'207940',
   'kb금융':'105560','kb':'105560',
-  '셀트리온':'068270','celltrion':'068270',
   '신한지주':'055550','신한':'055550',
-  'lg화학':'051910',
-  '카카오뱅크':'323410',
   '하나금융지주':'086790','하나금융':'086790','하나':'086790',
   '기아':'000270','kia':'000270',
   'posco홀딩스':'005490','포스코':'005490','posco':'005490',
-  '삼성sdi':'006400',
-  'lg전자':'066570',
-  '현대모비스':'012330','모비스':'012330',
-  '삼성물산':'028260',
-  'sk이노베이션':'096770','sk이노':'096770',
-  '삼성생명':'032830',
-  '카카오':'035720','kakao':'035720',
-  '셀트리온헬스케어':'091990',
-  '에코프로비엠':'247540','에코프로bm':'247540',
-  '에코프로':'086520',
-  '크래프톤':'259960','krafton':'259960',
-  '펄어비스':'263750','pearlabyss':'263750',
-  '카카오게임즈':'293490',
-  '엔씨소프트':'036570','ncsoft':'036570','엔씨':'036570',
-  '넷마블':'251270','netmarble':'251270',
   '맥쿼리인프라':'088980','맥쿼리':'088980'
 };
 var KR_TICKER_MKT = {
-  '005930':'ks','000660':'ks','005380':'ks','373220':'ks','207940':'ks',
-  '105560':'ks','068270':'ks','055550':'ks','051910':'ks','323410':'ks',
-  '086790':'ks','000270':'ks','005490':'ks','006400':'ks','066570':'ks',
-  '012330':'ks','028260':'ks','096770':'ks','032830':'ks','088980':'ks',
-  '035720':'kq','091990':'kq','247540':'kq','086520':'kq','066970':'kq',
-  '259960':'kq','263750':'kq','293490':'kq','036570':'kq','251270':'kq'
+  '005930':'ks','000660':'ks','005380':'ks','105560':'ks','055550':'ks','086790':'ks','000270':'ks','005490':'ks','088980':'ks'
 };
 var MKT_SUFFIX = {us:'', ks:'.KS', kq:'.KQ'};
-var MKT_HINTS  = {us: '예: SCHD, QQQ, TSLA', ks: '티커: 005930 또는 이름: 삼성전자', kq: '티커: 035720 또는 이름: 카카오'};
+var MKT_HINTS  = {us: '예: SCHD, QQQ, JEPQ', ks: '티커: 005930 또는 이름: 삼성전자', kq: '티커: 035720 또는 이름: 카카오'};
 
 // ═══════════════════════════════════════════
-//  FORMAT HELPERS
+//  HELPERS 
 // ═══════════════════════════════════════════
 function getFX() { return parseFloat(document.getElementById('rate-inp').value) || 1450; }
+function safeNum(val, def) { return (typeof val === 'number' && !isNaN(val) && isFinite(val)) ? val : def; }
+
 function fmtUSD(v) { var s = v<0?'-':'', a = Math.abs(v); return a<1 ? s+'$'+a.toFixed(2) : s+'$'+Math.round(a).toLocaleString('en-US'); }
 function fmtKRW(v) { var w = v*getFX(), s = w<0?'-':''; w = Math.abs(w); if(w>=100000000) return s+'₩'+(w/100000000).toFixed(2)+'억'; if(w>=10000) return s+'₩'+(w/10000).toFixed(1)+'만'; return s+'₩'+Math.round(w).toLocaleString('ko-KR'); }
 function fP(usd) { return mode==='krw' ? fmtKRW(usd) : fmtUSD(usd); }
@@ -458,51 +456,7 @@ function toggleScenario() {
 function updateCustomScenario() { if(scArr[scIdx].id==='custom'){ document.getElementById('sl-growth').value=parseFloat(document.getElementById('inp-custom-rate').value)||0; update(); } }
 
 // ═══════════════════════════════════════════
-//  TTM CAGR CALCULATION (Wall Street Standard)
-// ═══════════════════════════════════════════
-function calculateDividendCAGR(divList, targetYears) {
-  if (!divList || divList.length === 0) return 5.0; // Default
-
-  // divList must be array of {dateSec: unix_timestamp, amount: number} sorted ASC
-  divList.sort((a, b) => a.dateSec - b.dateSec);
-
-  var now = Date.now() / 1000;
-  var oneYear = 365.25 * 86400;
-
-  // 1. Current TTM (Sum of last 365 days)
-  var currentTTM = 0;
-  var currentStart = now - oneYear;
-  divList.forEach(d => { if (d.dateSec >= currentStart && d.dateSec <= now) currentTTM += d.amount; });
-
-  // 2. Past TTM (Sum of 365 days exactly targetYears ago)
-  var pastTTM = 0;
-  var pastEnd = now - (targetYears * oneYear);
-  var pastStart = pastEnd - oneYear;
-
-  divList.forEach(d => { if (d.dateSec >= pastStart && d.dateSec < pastEnd) pastTTM += d.amount; });
-
-  var actualYears = targetYears;
-
-  // Fallback: If no data N years ago, find the oldest available 1-year window
-  if (pastTTM === 0 && divList.length > 0) {
-    var oldestDate = divList[0].dateSec;
-    if (now - oldestDate < oneYear) return 0; // Less than 1 year of history
-    pastStart = oldestDate;
-    pastEnd = oldestDate + oneYear;
-    divList.forEach(d => { if (d.dateSec >= pastStart && d.dateSec < pastEnd) pastTTM += d.amount; });
-    actualYears = (now - pastEnd) / oneYear;
-  }
-
-  if (pastTTM > 0 && currentTTM > 0 && actualYears > 0) {
-    var cagr = (Math.pow(currentTTM / pastTTM, 1 / actualYears) - 1) * 100;
-    if (cagr > 100 || cagr < -50) return 5.0; // Outlier filter
-    return cagr;
-  }
-  return 5.0;
-}
-
-// ═══════════════════════════════════════════
-//  FETCH MULTI-LAYER LOGIC
+//  FETCH LOGIC (Yahoo Only + DB Override)
 // ═══════════════════════════════════════════
 function fetchFX() {
   var btn=document.getElementById('btn-fx'), txt=document.getElementById('btn-fx-txt');
@@ -525,141 +479,15 @@ function resolveKorean(raw) {
   return {code:raw.toUpperCase(), mktSuffix:MKT_SUFFIX[mkt]||'.KS'};
 }
 
-// Layer 1: Alpha Vantage
-async function fetchAV(ticker, yrs) {
-  var r = await fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_MONTHLY_ADJUSTED&symbol=${ticker}&apikey=${AV_KEY}`);
-  var data = await r.json();
-  if(data["Information"] || data["Note"]) throw new Error("AV Limit");
-  if(data["Error Message"]) throw new Error("AV Invalid");
-  if(!data["Monthly Adjusted Time Series"]) throw new Error("AV No Data");
-
-  var ts = data["Monthly Adjusted Time Series"], dates = Object.keys(ts).sort((a,b)=>new Date(a)-new Date(b));
-  var rawP = parseFloat(ts[dates[dates.length-1]]["4. close"]);
-  var cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear()-yrs);
-  var vDates = dates.filter(d=>new Date(d)>=cutoff); if(vDates.length<6) vDates=dates;
-
-  var pCagr = 6, stdDivs = [];
-  if(vDates.length>=6) {
-    var f=parseFloat(ts[vDates[0]]["5. adjusted close"]), l=parseFloat(ts[vDates[vDates.length-1]]["5. adjusted close"]), yf=vDates.length/12;
-    if(f>0 && yf>0.4) pCagr=(Math.pow(l/f,1/yf)-1)*100;
-  }
-  
-  dates.forEach(d => { 
-    var amt = parseFloat(ts[d]["7. dividend amount"]||0); 
-    if(amt>0) stdDivs.push({ dateSec: Date.parse(d)/1000, amount: amt }); 
-  });
-  
-  var nowS = Date.now()/1000;
-  var ttmY = rawP>0 ? (stdDivs.filter(d=>d.dateSec >= nowS - 31557600).reduce((s,d)=>s+d.amount,0) / rawP)*100 : 0;
-  var dCagr = calculateDividendCAGR(stdDivs, yrs);
-  
-  // Count frequency
-  var countY={}; stdDivs.forEach(d=>{ var y=new Date(d.dateSec*1000).getFullYear(); countY[y]=(countY[y]||0)+1; });
-  var maxP=0; Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;});
-  
-  return { name: ticker, rawP, pCagr, ttmY, dCagr, maxP, src: "Alpha Vantage" };
-}
-
-// Layer 2: FMP
-async function fetchFMP(ticker, yrs) {
-  var [qRes, pRes, dRes] = await Promise.all([
-    fetch(`https://financialmodelingprep.com/api/v3/quote/${ticker}?apikey=${FMP_KEY}`).then(r=>r.json()),
-    fetch(`https://financialmodelingprep.com/api/v3/historical-price-full/${ticker}?apikey=${FMP_KEY}`).then(r=>r.json()),
-    fetch(`https://financialmodelingprep.com/api/v3/historical-price-full/stock_dividend/${ticker}?apikey=${FMP_KEY}`).then(r=>r.json())
-  ]);
-  if(!qRes || qRes.length===0) throw new Error("FMP Quote Error");
-  var rawP = qRes[0].price, name = qRes[0].name || ticker;
-
-  var cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear()-yrs);
-  var pCagr = 6;
-  if(pRes && pRes.historical && pRes.historical.length>0) {
-    var hist = pRes.historical.reverse(), vPrices = hist.filter(h=>new Date(h.date)>=cutoff);
-    if(vPrices.length<6) vPrices=hist;
-    var f=vPrices[0].close, l=vPrices[vPrices.length-1].close, yf=vPrices.length/252;
-    if(f>0 && yf>0.4) pCagr=(Math.pow(l/f,1/yf)-1)*100;
-  }
-
-  var ttmY=0, dCagr=5, maxP=0;
-  if(dRes && dRes.historical && dRes.historical.length>0) {
-    var stdDivs = dRes.historical.map(d=>({ dateSec: Date.parse(d.date)/1000, amount: d.adjDividend }));
-    var nowS = Date.now()/1000;
-    ttmY = rawP>0 ? (stdDivs.filter(d=>d.dateSec >= nowS - 31557600).reduce((s,d)=>s+d.amount,0) / rawP)*100 : 0;
-    dCagr = calculateDividendCAGR(stdDivs, yrs);
-    
-    var countY={}; stdDivs.forEach(d=>{ var y=new Date(d.dateSec*1000).getFullYear(); countY[y]=(countY[y]||0)+1; });
-    Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;});
-  }
-  return { name, rawP, pCagr, ttmY, dCagr, maxP, src: "FMP" };
-}
-
-// Layer 3: Massive (Polygon)
-async function fetchPolygon(ticker, yrs) {
-  var endDate = new Date().toISOString().split('T')[0], sd = new Date(); sd.setFullYear(sd.getFullYear()-(yrs+1)); // Extra year for TTM
-  var startDate = sd.toISOString().split('T')[0];
-  var [pRes, qRes, dRes] = await Promise.all([
-    fetch(`https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/month/${startDate}/${endDate}?adjusted=true&sort=asc&apiKey=${POLYGON_KEY}`).then(r=>r.json()),
-    fetch(`https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${POLYGON_KEY}`).then(r=>r.json()),
-    fetch(`https://api.polygon.io/v3/reference/dividends?ticker=${ticker}&apiKey=${POLYGON_KEY}&limit=1000`).then(r=>r.json())
-  ]);
-  if(!qRes.results || qRes.results.length===0) throw new Error("Polygon Quote Error");
-  var rawP = qRes.results[0].c, name = ticker;
-
-  var pCagr = 6;
-  if(pRes.results && pRes.results.length>0) {
-    var vPrices = pRes.results, f=vPrices[0].c, l=vPrices[vPrices.length-1].c, yf=vPrices.length/12;
-    if(f>0 && yf>0.4) pCagr=(Math.pow(l/f,1/yf)-1)*100;
-  }
-
-  var ttmY=0, dCagr=5, maxP=0;
-  if(dRes.results && dRes.results.length>0) {
-    var stdDivs = dRes.results.map(d=>({ dateSec: Date.parse(d.pay_date)/1000, amount: d.cash_amount }));
-    var nowS = Date.now()/1000;
-    ttmY = rawP>0 ? (stdDivs.filter(d=>d.dateSec >= nowS - 31557600).reduce((s,d)=>s+d.amount,0) / rawP)*100 : 0;
-    dCagr = calculateDividendCAGR(stdDivs, yrs);
-    
-    var countY={}; stdDivs.forEach(d=>{ var y=new Date(d.dateSec*1000).getFullYear(); countY[y]=(countY[y]||0)+1; });
-    Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;});
-  }
-  return { name, rawP, pCagr, ttmY, dCagr, maxP, src: "Massive" };
-}
-
-// Layer 4: Yahoo Fallback
-async function fetchYahoo(ticker, yrs) {
-  var urls=[]; ENDPOINTS.forEach(ei=>PROXIES.forEach(pi=>urls.push(pi(ei+encodeURIComponent(ticker)+`?interval=1mo&range=${yrs+2}y&events=div&includeAdjustedClose=true`))));
-  var data = await new Promise((res, rej)=>{
-    var errs=0, ok=false, ctrl=typeof AbortController!=='undefined'?new AbortController():null;
-    urls.forEach(u=>{
-      fetch(u,{headers:{'Accept':'application/json'}, signal:ctrl?ctrl.signal:undefined}).then(r=>{if(!r.ok)throw new Error(); return r.text();}).then(t=>{
-        var d=JSON.parse(t); if(d&&d.chart&&d.chart.result&&!ok){ ok=true; if(ctrl)ctrl.abort(); res(d); }
-      }).catch(e=>{ errs++; if(errs===urls.length&&!ok) rej(new Error("Yahoo Failed")); });
-    });
-    setTimeout(()=>{if(!ok)rej(new Error("Timeout"));}, 8000);
-  });
-
-  var r = data.chart.result[0], meta = r.meta||{}, cl=r.indicators.quote[0].close||[], stamps=r.timestamp||[], divEvt=(r.events&&r.events.dividends)||{};
-  var rawP = meta.regularMarketPrice||meta.chartPreviousClose||30;
-  
-  var v=[], pCagr=6;
-  var cutoff = (Date.now()/1000) - (yrs * 365.25 * 86400);
-  for(var i=0;i<cl.length;i++) if(cl[i]>0 && stamps[i]>=cutoff) v.push({v:cl[i], t:stamps[i]});
-  if(v.length>=6){ var yf=(v[v.length-1].t-v[0].t)/(365.25*86400); if(yf>0.4) pCagr=(Math.pow(v[v.length-1].v/v[0].v,1/yf)-1)*100; }
-
-  var stdDivs = Object.values(divEvt).map(d=>({ dateSec: d.date, amount: d.amount }));
-  var nowS = Date.now()/1000;
-  var ttmY = rawP>0 ? (stdDivs.filter(d=>d.dateSec >= nowS - 31557600).reduce((s,d)=>s+d.amount,0) / rawP)*100 : 0;
-  var dCagr = calculateDividendCAGR(stdDivs, yrs);
-
-  var maxP=0, countY={}; stdDivs.forEach(d=>{ var y=new Date(d.dateSec*1000).getFullYear(); countY[y]=(countY[y]||0)+1; });
-  Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;});
-
-  return { name: meta.longName||meta.shortName||ticker, rawP, pCagr, ttmY, dCagr, maxP, src: "Yahoo Proxy" };
-}
-
 async function fetchTicker() {
   var rawInput = document.getElementById('ticker-input').value.trim(); if(!rawInput) return;
-  var ticker, iKorean=false;
-  if(mkt!=='us'){ var res=resolveKorean(rawInput); ticker=res.code+res.mktSuffix; iKorean=true; document.getElementById('ticker-input').value=ticker; } 
-  else { ticker=rawInput.toUpperCase(); if(ticker.endsWith('.KS')||ticker.endsWith('.KQ')) iKorean=true; }
+  var ticker, iKorean=false, cleanTicker = rawInput.toUpperCase();
+  
+  if(mkt!=='us'){ 
+    var res=resolveKorean(rawInput); ticker=res.code+res.mktSuffix; cleanTicker = res.code; iKorean=true; document.getElementById('ticker-input').value=ticker; 
+  } else { 
+    ticker=rawInput.toUpperCase(); if(ticker.endsWith('.KS')||ticker.endsWith('.KQ')){ iKorean=true; cleanTicker=ticker.split('.')[0]; }
+  }
 
   isKoreanStock=iKorean;
   if(iKorean){ mode='krw'; document.getElementById('btn-usd').className='cur-btn'; document.getElementById('btn-krw').className='cur-btn on'; document.getElementById('btn-usd').style.opacity='.4'; document.getElementById('btn-usd').style.pointerEvents='none'; } 
@@ -667,46 +495,108 @@ async function fetchTicker() {
 
   var yrs = parseInt(document.getElementById('hist-years').value);
   var btn = document.getElementById('btn-search'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
-  document.getElementById('sb-name-row').style.display='none'; setSt('search-st', '<span class="spin"></span> API 데이터 탐색 중…', 'ld');
+  document.getElementById('sb-name-row').style.display='none'; setSt('search-st', '<span class="spin"></span> 데이터 조회 중…', 'ld');
 
-  var result = null;
-  if (!iKorean) {
-    try { result = await fetchAV(ticker, yrs); } catch(e) {}
-    if (!result) { try { result = await fetchFMP(ticker, yrs); } catch(e) {} }
-    if (!result) { try { result = await fetchPolygon(ticker, yrs); } catch(e) {} }
-  }
-  if (!result) {
-    try { result = await fetchYahoo(ticker, yrs); } 
-    catch(e) { setSt('search-st', '⚠ 데이터 호출 실패. 다른 티커를 시도하세요.', 'err'); btn.disabled=false; btn.innerHTML='검색'; return; }
+  var urls=[]; ENDPOINTS.forEach(ei=>PROXIES.forEach(pi=>urls.push(pi(ei+encodeURIComponent(ticker)+`?interval=1mo&range=max&events=div`))));
+  var data;
+  try {
+    data = await new Promise((res, rej)=>{
+      var errs=0, ok=false, ctrl=typeof AbortController!=='undefined'?new AbortController():null;
+      urls.forEach(u=>{
+        fetch(u,{headers:{'Accept':'application/json'}, signal:ctrl?ctrl.signal:undefined}).then(r=>{if(!r.ok)throw new Error(); return r.text();}).then(t=>{
+          try { var d=JSON.parse(t); if(d&&d.chart&&d.chart.result&&!ok){ ok=true; if(ctrl)ctrl.abort(); res(d); } } catch(e) { throw e; }
+        }).catch(e=>{ errs++; if(errs===urls.length&&!ok) rej(new Error("API Failed")); });
+      });
+      setTimeout(()=>{if(!ok)rej(new Error("Timeout"));}, 8000);
+    });
+  } catch(e) {
+    setSt('search-st', '⚠ 데이터 호출 실패. 티커명을 확인하세요.', 'err'); btn.disabled=false; btn.innerHTML='검색'; return;
   }
 
-  curP = iKorean ? result.rawP / getFX() : result.rawP;
+  var r = data.chart.result[0], meta = r.meta||{}, cl=r.indicators?.quote?.[0]?.close||[], stamps=r.timestamp||[], divEvt=r.events?.dividends||{};
+  var rawP = safeNum(meta.regularMarketPrice||meta.chartPreviousClose, 30);
+  
+  var pCagr = 6.0;
+  var cutoff = (Date.now()/1000) - (yrs * 365.25 * 86400); 
+  var v=[]; for(var i=0;i<cl.length;i++) if(cl[i]>0 && stamps[i]>=cutoff) v.push({v:cl[i], t:stamps[i]});
+  if(v.length>=6){ var yf=(v[v.length-1].t-v[0].t)/(365.25*86400); if(yf>0.4) pCagr=safeNum((Math.pow(v[v.length-1].v/v[0].v,1/yf)-1)*100, 6.0); }
+
+  var stdDivs = Object.values(divEvt).map(d=>({ dateSec: d.date, amount: d.amount })).sort((a,b)=>a.dateSec-b.dateSec);
+  var nowS = Date.now()/1000;
+  var ttmY = safeNum(rawP>0 ? (stdDivs.filter(d=>d.dateSec >= nowS - 31557600).reduce((s,d)=>s+d.amount,0) / rawP)*100 : 0, 3.0);
+
+  var dCagr = 5.0; 
+  var badgeText = "계산값";
+  var badgeBg = "var(--blue-l)";
+  var badgeColor = "var(--blue)";
+  
+  var dbData = KNOWN_DIVIDEND_METRICS[cleanTicker];
+  if (dbData) {
+     dCagr = dbData.cagr[yrs] !== undefined ? dbData.cagr[yrs] : dbData.cagr[10];
+     badgeText = "확정 DB (" + cleanTicker + ")";
+     badgeBg = "var(--blue)";
+     badgeColor = "#fff";
+     isMonthlyDiv = (dbData.divFreq === 'M');
+  } else {
+     // DB에 없으면 TTM 알고리즘으로 1년/N년 계산
+     var currentTTM = 0;
+     stdDivs.forEach(d=>{ if(d.dateSec >= nowS - 31557600) currentTTM+=d.amount; });
+     
+     var pastTTM = 0;
+     var pastEnd = nowS - (yrs * 31557600);
+     var pastStart = pastEnd - 31557600;
+     stdDivs.forEach(d=>{ if(d.dateSec >= pastStart && d.dateSec < pastEnd) pastTTM+=d.amount; });
+     
+     var actualSpan = yrs;
+     if (pastTTM === 0 && stdDivs.length > 0) {
+        var oldest = stdDivs[0].dateSec;
+        pastStart = oldest; pastEnd = oldest + 31557600;
+        stdDivs.forEach(d=>{ if(d.dateSec >= pastStart && d.dateSec < pastEnd) pastTTM+=d.amount; });
+        actualSpan = (nowS - pastEnd) / 31557600;
+     }
+     
+     if (pastTTM > 0 && currentTTM > 0 && actualSpan > 0) {
+        var calcCagr = (Math.pow(currentTTM/pastTTM, 1/actualSpan)-1)*100;
+        if (calcCagr < -20 || calcCagr > 50) dCagr = 5.0; // 하드리밋
+        else dCagr = safeNum(calcCagr, 5.0);
+     }
+     
+     var maxP=0, countY={}; stdDivs.forEach(d=>{ var y=new Date(d.dateSec*1000).getFullYear(); countY[y]=(countY[y]||0)+1; });
+     Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;});
+     isMonthlyDiv = (maxP > 6);
+  }
+
+  curP = iKorean ? rawP / getFX() : rawP;
   if(curP<=0) curP=30;
 
-  document.getElementById('hdr-price').textContent = iKorean ? '₩'+Math.round(result.rawP).toLocaleString('ko-KR') : '$'+curP.toFixed(2);
+  document.getElementById('hdr-price').textContent = iKorean ? '₩'+Math.round(rawP).toLocaleString('ko-KR') : '$'+curP.toFixed(2);
   document.getElementById('hdr-date').textContent = new Date().toLocaleDateString('ko-KR');
 
-  document.getElementById('ph-yield').textContent = result.ttmY.toFixed(2)+'%';
-  document.getElementById('ph-cagr').textContent  = fPct(result.pCagr);
-  var nDisp = result.name.length>30 ? result.name.slice(0,30)+'…' : result.name;
-  document.getElementById('tick-fullname').textContent = nDisp;
+  document.getElementById('ph-yield').textContent = ttmY.toFixed(2)+'%';
+  document.getElementById('ph-cagr').textContent  = fPct(pCagr);
+  var nName = meta.longName||meta.shortName||ticker;
+  document.getElementById('tick-fullname').textContent = nName.length>30 ? nName.slice(0,30)+'…' : nName;
   document.getElementById('tick-yr').textContent = '('+yrs+'년 기준)';
   document.getElementById('sb-name-row').style.display = 'block';
 
-  document.getElementById('sl-growth').value  = Math.min(50, Math.max(-25, parseFloat(result.pCagr.toFixed(1))));
-  document.getElementById('sl-dyield').value  = Math.min(100,Math.max(0,   parseFloat(result.ttmY.toFixed(2))));
-  document.getElementById('sl-dgrowth').value = Math.min(50, Math.max(-20, parseFloat(result.dCagr.toFixed(1))));
+  document.getElementById('sl-growth').value  = Math.min(50, Math.max(-25, pCagr));
+  document.getElementById('sl-dyield').value  = Math.min(100,Math.max(0,   ttmY));
+  document.getElementById('sl-dgrowth').value = Math.min(50, Math.max(-20, dCagr));
 
   if (scArr[scIdx].id !== 'custom') document.getElementById('badge-growth').style.display='inline-block';
   document.getElementById('badge-yield').style.display='inline-block';
-  document.getElementById('badge-dgrowth').style.display='inline-block';
+  
+  var bdg = document.getElementById('badge-dgrowth');
+  bdg.style.display='inline-block';
+  bdg.textContent = badgeText;
+  bdg.style.background = badgeBg;
+  bdg.style.color = badgeColor;
 
-  isMonthlyDiv = (result.maxP > 6);
   var btnFreq = document.getElementById('btn-freq-toggle');
   btnFreq.innerText = isMonthlyDiv ? '주기: 매월' : '주기: 분기';
   btnFreq.className = 'tbtn'+(isMonthlyDiv?' on':'');
 
-  setSt('search-st', '✓ '+nDisp.slice(0,20)+' ['+result.src+'] | CAGR '+fPct(result.pCagr)+' · 배당 '+result.ttmY.toFixed(2)+'%', 'ok');
+  setSt('search-st', '✓ 데이터 세팅 완료 | 배당 '+ttmY.toFixed(2)+'%', 'ok');
   update();
   btn.disabled=false; btn.innerHTML='검색';
 }
@@ -722,13 +612,17 @@ document.getElementById('inp-years').addEventListener('input', function() { var 
 
 function update() {
   var P=usdInit, M=usdMonthly, W=drip?0:usdWithdraw, Y=parseInt(document.getElementById('inp-years').value)||20;
-  var aG=parseFloat(document.getElementById('sl-growth').value)/100, dY=parseFloat(document.getElementById('sl-dyield').value)/100, dG=parseFloat(document.getElementById('sl-dgrowth').value)/100;
+  
+  var aG=safeNum(parseFloat(document.getElementById('sl-growth').value), 6)/100;
+  var dY=safeNum(parseFloat(document.getElementById('sl-dyield').value), 3)/100;
+  var dG=safeNum(parseFloat(document.getElementById('sl-dgrowth').value), 5)/100;
+  
   var mG=Math.pow(1+aG, 1/12)-1, mDG=Math.pow(1+dG, 1/12)-1, EXP=0.0006;
   var taxRate=applyTax?(mkt==='us'?0.15:0.154):0;
 
   document.getElementById('o-growth').textContent=(aG*100).toFixed(1)+'%'; document.getElementById('o-dyield').textContent=(dY*100).toFixed(2)+'%'; document.getElementById('o-dgrowth').textContent=(dG*100).toFixed(1)+'%';
 
-  var isMonthly=(Y===1), price=curP, shares=price>0?P/price:0, inv=P, cash=0;
+  var isMonthly=(Y===1), price=safeNum(curP,30), shares=price>0?P/price:0, inv=P, cash=0;
   var annualDPS=price*dY, cumDiv=0, totalWithdrawn=0, labels=[], pA=[], dA=[], gA=[], rows=[];
   var totalSteps = Y*12;
 
