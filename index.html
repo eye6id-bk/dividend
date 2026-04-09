@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f4f6fb">
+<title>배당 복리 계산기 v1.4</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#f4f6fb; --card:#fff; --card2:#f7f9fd;
+  --b1:#e3e8f0; --b2:#c9d0e4;
+  --t1:#111827; --t2:#5a6278; --t3:#9da5bc;
+  --blue:#2563eb; --blue-l:#dbeafe; --blue-m:#93c5fd; --blue-d:#1d4ed8;
+  --green:#059669; --green-l:#d1fae5;
+  --amber:#d97706; --red:#dc2626;
+  --h:40px; --r:10px; --rl:16px;
+  --sh:0 1px 3px rgba(0,0,0,.08),0 0 0 1px rgba(0,0,0,.04);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;min-height:100vh;padding-bottom:calc(24px + env(safe-area-inset-bottom));}
+.page{max-width:460px;margin:0 auto;padding:13px 12px 40px;}
+.card{background:var(--card);border-radius:var(--rl);box-shadow:var(--sh);margin-bottom:10px;overflow:hidden;}
+.pad{padding:13px;}
+
+/* ── TOP ROW ── */
+.top-row{display:grid;grid-template-columns:1fr auto auto auto;gap:7px;align-items:center;padding:10px 12px;}
+.ticker-inp{height:var(--h);width:100%;background:var(--blue-l);border:2px solid transparent;border-radius:var(--r);padding:0 12px;font-size:15px;font-weight:800;color:var(--blue);font-family:monospace;outline:none;text-transform:uppercase;transition:all .18s;}
+.ticker-inp:focus{border-color:var(--blue);background:#fff;color:var(--t1);}
+.ticker-inp::placeholder{color:var(--blue-m);}
+.price-box{height:var(--h);background:var(--blue-l);border-radius:var(--r);padding:0 10px;display:flex;flex-direction:column;justify-content:center;flex-shrink:0;}
+.price-n{font-size:13px;font-weight:800;color:var(--blue);font-family:monospace;white-space:nowrap;line-height:1.15;}
+.price-d{font-size:9px;color:var(--blue);opacity:.55;white-space:nowrap;}
+.yr-sel{height:var(--h);width:52px;background:var(--card2);border:1.5px solid var(--b2);border-radius:var(--r);padding:0 4px;font-size:12px;font-weight:700;color:var(--t2);outline:none;-webkit-appearance:none;text-align:center;cursor:pointer;}
+.btn-primary{height:var(--h);background:var(--blue);color:#fff;border:none;border-radius:var(--r);padding:0 15px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.btn-primary:active{background:var(--blue-d);}
+.btn-primary:disabled{opacity:.4;pointer-events:none;}
+.sep{height:1px;background:var(--b1);margin:0 12px;}
+.tk-info{padding:9px 13px 4px;}
+.tk-name{font-size:14px;font-weight:700;color:var(--t1);}
+.tk-yr{font-size:11px;color:var(--t3);margin-left:5px;}
+.tk-st{font-size:12px;line-height:1.5;word-break:break-all;min-height:14px;margin-top:3px;}
+.tk-st.ok{color:var(--green);font-weight:600;}
+.tk-st.err{color:var(--red);font-weight:600;}
+.tk-st.ld{color:var(--amber);font-weight:600;}
+.pills{display:flex;gap:5px;flex-wrap:wrap;padding:8px 13px 10px;}
+.pill{background:var(--blue-l);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--blue);font-weight:600;}
+.pill b{font-weight:800;}
+.mkt-row{display:flex;gap:6px;padding:0 13px 10px;align-items:center;flex-wrap:wrap;}
+.mkt-lbl{font-size:11px;color:var(--t3);font-weight:600;}
+.mkt-btn{height:28px;padding:0 11px;font-size:11px;font-weight:600;border-radius:14px;border:1.5px solid var(--b2);cursor:pointer;background:var(--card2);color:var(--t2);font-family:inherit;}
+.mkt-btn.on{background:var(--blue-l);color:var(--blue);border-color:var(--blue);}
+.mkt-hint{font-size:11px;color:var(--t3);padding:0 13px 11px;line-height:1.4;}
+
+/* ── FX ROW ── */
+.fx-row{display:flex;gap:7px;align-items:center;padding:10px 12px;}
+.rate-pill{flex:1;min-width:0;height:var(--h);display:flex;align-items:center;gap:2px;background:var(--card2);border:1.5px solid var(--b2);border-radius:calc(var(--h)/2);padding:0 14px;cursor:text;}
+.rate-inp{background:transparent;border:none;outline:none;font-size:16px;font-weight:800;font-family:monospace;color:var(--t1);width:5em;min-width:0;text-align:right;-webkit-appearance:none;}
+.rate-unit{font-size:14px;font-weight:700;color:var(--t2);flex-shrink:0;}
+.btn-live{height:var(--h);flex-shrink:0;background:var(--green-l);color:var(--green);border:1.5px solid rgba(5,150,105,.25);border-radius:calc(var(--h)/2);padding:0 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;}
+.btn-live:active{background:rgba(5,150,105,.2);}
+.btn-live:disabled{opacity:.38;pointer-events:none;}
+.cur-toggle{display:flex;height:var(--h);border:1.5px solid var(--b2);border-radius:calc(var(--h)/2);overflow:hidden;background:var(--card2);flex-shrink:0;}
+.cur-btn{padding:0 13px;font-size:12px;font-weight:700;cursor:pointer;background:transparent;border:none;color:var(--t2);font-family:inherit;white-space:nowrap;display:flex;align-items:center;}
+.cur-btn.on{background:var(--blue);color:#fff;}
+.fx-st{font-size:11px;padding:0 13px 7px;min-height:0;}
+.fx-st.ok{color:var(--green);font-weight:600;}
+.fx-st.err{color:var(--red);font-weight:600;}
+
+/* ── INV GRID ── */
+.inv-grid{display:grid;grid-template-columns:1fr 1fr 1fr;}
+.inv-col{display:flex;flex-direction:column;justify-content:flex-start;padding:12px 11px;border-right:1px solid var(--b1);}
+.inv-col:last-child{border-right:none;}
+.inv-lbl{font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;}
+.inv-row{display:flex;align-items:baseline;gap:3px;}
+.inv-inp{background:transparent;border:none;border-bottom:2px solid var(--b2);outline:none;font-size:15px;font-weight:800;font-family:monospace;color:var(--blue);width:100%;padding:2px 0 3px;-webkit-appearance:none;transition:border-color .2s;}
+.inv-inp:focus{border-bottom-color:var(--blue);}
+.period-inp{background:transparent;border:none;border-bottom:2px solid var(--b2);outline:none;font-size:15px;font-weight:800;font-family:monospace;color:var(--t1);width:38px;padding:2px 0 3px;-webkit-appearance:none;}
+.period-inp:focus{border-bottom-color:var(--blue);}
+.inv-unit{font-size:12px;font-weight:700;color:var(--t2);flex-shrink:0;}
+.inv-alt{font-size:11px;color:var(--t3);font-family:monospace;margin-top:5px;min-height:14px;}
+
+/* ── METRICS ── */
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.metric{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:11px 12px;}
+.metric.hi{outline:2px solid var(--blue);}
+.m-lbl{font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px;}
+.m-pri{font-size:17px;font-weight:800;font-family:monospace;color:var(--t1);line-height:1.2;word-break:break-all;}
+.m-pri.blue{color:var(--blue);}
+.m-pri.green{color:var(--green);}
+.m-alt{font-size:12px;font-weight:500;font-family:monospace;color:var(--t3);margin-top:4px;}
+
+/* ── SLIDERS ── */
+.sl-b{margin-bottom:10px;}
+.sl-b:last-child{margin-bottom:0;}
+.sl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.sl-lbl{font-size:13px;color:var(--t2);font-weight:500;}
+.sl-val{font-size:13px;font-weight:800;font-family:monospace;}
+.sl-val.blue{color:var(--blue);}
+.sl-val.green{color:var(--green);}
+.abadge{display:none;font-size:9px;padding:1px 6px;border-radius:4px;background:var(--blue-l);color:var(--blue);font-weight:700;margin-left:4px;vertical-align:middle;}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:5px;background:var(--b1);border-radius:3px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--blue);cursor:pointer;border:3px solid #fff;box-shadow:0 1px 5px rgba(37,99,235,.3);}
+
+/* ── TOGGLES ── */
+.tgrp{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
+.tg-lbl{font-size:11px;color:var(--t3);font-weight:600;flex-shrink:0;}
+.tbtn{height:30px;padding:0 12px;font-size:12px;font-weight:600;border-radius:15px;border:1.5px solid var(--b2);cursor:pointer;background:var(--card);color:var(--t2);font-family:inherit;}
+.tbtn:active{transform:scale(.96);}
+.tbtn.on{background:var(--blue);color:#fff;border-color:var(--blue);}
+.tbtn.bear.on{background:var(--red);border-color:var(--red);}
+.tbtn.base.on{background:var(--amber);border-color:var(--amber);color:#fff;}
+.tbtn.bull.on{background:var(--green);border-color:var(--green);}
+
+/* ── WITHDRAWAL ── */
+.wdraw{display:none;align-items:center;gap:7px;margin-bottom:10px;padding:10px 13px;background:#fffbeb;border:1.5px solid rgba(217,119,6,.2);border-radius:var(--r);}
+.wdraw.show{display:flex;}
+.wdraw label{font-size:12px;color:var(--amber);font-weight:700;flex:1;}
+.wdraw-row{display:flex;align-items:baseline;gap:3px;}
+.w-inp{background:#fff;border:none;border-bottom:2px solid rgba(217,119,6,.35);outline:none;font-size:15px;font-weight:800;font-family:monospace;color:var(--t1);width:80px;text-align:right;-webkit-appearance:none;padding:0 0 2px;}
+.w-unit{font-size:12px;color:var(--amber);font-weight:700;}
+.w-alt{font-size:11px;color:var(--t3);font-family:monospace;}
+
+/* ── CHART ── */
+.legend{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;}
+.leg{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--t2);font-weight:600;}
+.ldot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+.chart-wrap{position:relative;width:100%;height:200px;}
+
+/* ── TABLE ── */
+.tbl-hdr{display:flex;justify-content:space-between;align-items:center;background:var(--card2);padding:9px 14px;border-bottom:1px solid var(--b1);}
+.tbl-hdr h3{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table{width:100%;border-collapse:collapse;}
+th{padding:7px 8px;text-align:right;color:var(--t3);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-bottom:1px solid var(--b1);white-space:nowrap;background:var(--card2);}
+th:first-child{text-align:left;}
+td{padding:9px 8px;text-align:right;border-bottom:1px solid var(--b1);font-family:monospace;font-size:12px;white-space:nowrap;color:var(--t1);}
+td:first-child{text-align:left;color:var(--t2);font-family:inherit;font-size:11px;font-weight:600;}
+.td2{display:block;font-size:10px;color:var(--t3);margin-top:1px;}
+tr:last-child td{border-bottom:none;}
+tr:nth-child(even) td{background:var(--card2);}
+
+/* Spinner */
+.spin{display:inline-block;width:12px;height:12px;border:2.5px solid rgba(37,99,235,.18);border-top-color:var(--blue);border-radius:50%;animation:sp .5s linear infinite;flex-shrink:0;vertical-align:middle;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.disc{font-size:10px;color:var(--t3);text-align:center;line-height:1.8;margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="card">
+  <div class="top-row">
+    <input class="ticker-inp" id="ticker-input" type="text" value="SCHD" maxlength="14"
+      autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="TICKER / 종목명">
+    <div class="price-box">
+      <div class="price-n" id="hdr-price">$30.58</div>
+      <div class="price-d" id="hdr-date">기본값</div>
+    </div>
+    <select class="yr-sel" id="hist-years">
+      <option value="1">1년</option>
+      <option value="3">3년</option>
+      <option value="5" selected>5년</option>
+      <option value="10">10년</option>
+    </select>
+    <button class="btn-primary" id="btn-search" onclick="fetchTicker()">검색</button>
+  </div>
+  <div class="sep"></div>
+  <div class="tk-info">
+    <div id="sb-name-row" style="display:none;">
+      <span class="tk-name" id="tick-fullname"></span>
+      <span class="tk-yr"   id="tick-yr"></span>
+    </div>
+    <div class="tk-st" id="search-st"></div>
+  </div>
+  <div class="pills">
+    <div class="pill">배당수익률 <b id="ph-yield">3.43%</b></div>
+    <div class="pill">주가CAGR <b id="ph-cagr">+6.0%</b></div>
+    <div class="pill">보수 <b>0.06%</b></div>
+  </div>
+  <div class="mkt-row">
+    <span class="mkt-lbl">시장</span>
+    <button class="mkt-btn on" id="mkt-us" onclick="setMkt('us')">🇺🇸 미국</button>
+    <button class="mkt-btn"   id="mkt-ks" onclick="setMkt('ks')">🇰🇷 코스피</button>
+    <button class="mkt-btn"   id="mkt-kq" onclick="setMkt('kq')">🇰🇷 코스닥</button>
+  </div>
+  <div class="mkt-hint" id="mkt-hint">예: SCHD, QQQ, JEPI, CONY, TSLA</div>
+</div>
+
+<div class="card">
+  <div class="fx-row">
+    <div class="rate-pill" onclick="document.getElementById('rate-inp').focus()">
+      <input class="rate-inp" id="rate-inp" type="number" value="1450" min="1000" max="2500" step="1" inputmode="decimal">
+      <span class="rate-unit">원</span>
+    </div>
+    <button class="btn-live" id="btn-fx" onclick="fetchFX()">
+      <span id="btn-fx-txt">현재환율</span>
+    </button>
+    <div class="cur-toggle">
+      <button class="cur-btn" id="btn-usd" onclick="setMode('usd')">$&nbsp;USD</button>
+      <button class="cur-btn on" id="btn-krw" onclick="setMode('krw')">₩&nbsp;KRW</button>
+    </div>
+  </div>
+  <div class="fx-st" id="fx-st"></div>
+</div>
+
+<div class="card">
+  <div class="inv-grid">
+    <div class="inv-col">
+      <div class="inv-lbl">투자 기간</div>
+      <div class="inv-row">
+        <input class="period-inp" id="inp-years" type="number" value="20" min="1" max="50" inputmode="decimal">
+        <span class="inv-unit">년</span>
+      </div>
+      <div class="inv-alt" id="period-months">240개월</div>
+    </div>
+    <div class="inv-col">
+      <div class="inv-lbl">초기 투자비</div>
+      <div class="inv-row">
+        <input class="inv-inp" id="inp-init" type="number" value="1000" min="0" step="0.1" inputmode="decimal">
+        <span class="inv-unit" id="unit-init">만원</span>
+      </div>
+      <div class="inv-alt" id="alt-init"></div>
+    </div>
+    <div class="inv-col">
+      <div class="inv-lbl">월 추가매수</div>
+      <div class="inv-row">
+        <input class="inv-inp" id="inp-monthly" type="number" value="0" min="0" step="0.1" inputmode="decimal">
+        <span class="inv-unit" id="unit-monthly">만원</span>
+      </div>
+      <div class="inv-alt" id="alt-monthly"></div>
+    </div>
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="metric hi">
+    <span class="m-lbl">최종 평가금액</span>
+    <div class="m-pri blue" id="c-total">—</div>
+    <div class="m-alt"      id="c-total-alt"></div>
+  </div>
+  <div class="metric">
+    <span class="m-lbl">총 투자 원금</span>
+    <div class="m-pri"  id="c-inv">—</div>
+    <div class="m-alt"  id="c-inv-alt"></div>
+  </div>
+  <div class="metric">
+    <span class="m-lbl">총 수익 (총 인출액 포함)</span>
+    <div class="m-pri green" id="c-profit">—</div>
+    <div class="m-alt"       id="c-profit-alt"></div>
+  </div>
+  <div class="metric">
+    <span class="m-lbl">보유 주수</span>
+    <div class="m-pri" id="c-shares">—</div>
+  </div>
+  <div class="metric">
+    <span class="m-lbl">연간 배당금</span>
+    <div class="m-pri green" id="c-divyr">—</div>
+    <div class="m-alt"       id="c-divyr-alt"></div>
+  </div>
+  <div class="metric">
+    <span class="m-lbl">총 수익률</span>
+    <div class="m-pri" id="c-ret">—</div>
+  </div>
+</div>
+
+<div class="card pad">
+  <div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:11px;">수익률 가정</div>
+  <div class="sl-b">
+    <div class="sl-top">
+      <span class="sl-lbl">연 주가 상승률 <span class="abadge" id="badge-growth">자동</span></span>
+      <span class="sl-val blue" id="o-growth">6.0%</span>
+    </div>
+    <input type="range" id="sl-growth" min="-15" max="30" step="0.5" value="6">
+  </div>
+  <div class="sl-b">
+    <div class="sl-top">
+      <span class="sl-lbl">배당수익률 <span class="abadge" id="badge-yield">자동</span></span>
+      <span class="sl-val green" id="o-dyield">3.43%</span>
+    </div>
+    <input type="range" id="sl-dyield" min="0" max="100" step="0.1" value="3.43">
+  </div>
+  <div class="sl-b">
+    <div class="sl-top">
+      <span class="sl-lbl">연 배당 성장률 <span class="abadge" id="badge-dgrowth">자동</span></span>
+      <span class="sl-val green" id="o-dgrowth">5.0%</span>
+    </div>
+    <input type="range" id="sl-dgrowth" min="-5" max="30" step="0.5" value="5">
+  </div>
+</div>
+
+<div class="tgrp">
+  <span class="tg-lbl">DRIP:</span>
+  <button class="tbtn on" id="btn-drip-on"  onclick="setDrip(true)">재투자</button>
+  <button class="tbtn"    id="btn-drip-off" onclick="setDrip(false)">현금수령</button>
+  <span class="tg-lbl" style="margin-left:4px">시나리오:</span>
+  <button class="tbtn bear" id="btn-bear" onclick="setScenario('bear')">약세 0%</button>
+  <button class="tbtn base" id="btn-base" onclick="setScenario('base')">기본 6%</button>
+  <button class="tbtn bull on" id="btn-bull" onclick="setScenario('bull')">강세 10%</button>
+</div>
+
+<div class="wdraw" id="wdraw-row">
+  <label>매월 인출</label>
+  <div class="wdraw-row">
+    <input class="w-inp" id="inp-withdraw" type="number" value="0" min="0" step="0.1" inputmode="decimal">
+    <span class="w-unit" id="w-unit">만원/월</span>
+  </div>
+  <span class="w-alt" id="alt-withdraw"></span>
+</div>
+
+<div class="card pad">
+  <div class="legend">
+    <div class="leg"><div class="ldot" style="background:#2563eb"></div>주가상승</div>
+    <div class="leg"><div class="ldot" style="background:#059669"></div>배당누계</div>
+    <div class="leg"><div class="ldot" style="background:#d1d5db"></div>원금</div>
+  </div>
+  <div class="chart-wrap"><canvas id="myChart"></canvas></div>
+</div>
+
+<div class="card" style="overflow:hidden;">
+  <div class="tbl-hdr">
+    <h3 id="tbl-title">연도별 상세</h3>
+    <span style="font-size:10px;color:var(--t3);font-weight:600">← 스크롤</span>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead id="tbl-head"></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<p class="disc">v1.4 · 시뮬레이션 목적 · 투자 권유 아님 · 세금·수수료 미반영 · Yahoo Finance 기준</p>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+var mode = 'krw';   
+var mkt  = 'us';    
+var drip = true;
+var isKoreanStock = false;  
+var curP = 30.58;   
+var myChart = null;
+
+var usdInit     = 1000 * 10000 / 1450;  
+var usdMonthly  = 0;
+var usdWithdraw = 0;
+
+var sim = {fin:0,inv:0,profit:0,annDiv:0,retPct:0,shares:0,rows:[],labels:[],pA:[],dA:[],gA:[]};
+
+var ENDPOINTS = [
+  'https://query1.finance.yahoo.com/v8/finance/chart/',
+  'https://query2.finance.yahoo.com/v8/finance/chart/'
+];
+
+// 속도 개선: 안정적인 프록시로 최적화
+var PROXIES = [
+  function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+  function(u){ return 'https://corsproxy.io/?url=' + encodeURIComponent(u); },
+  function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }
+];
+
+var KR_STOCKS = {
+  '삼성전자':'005930','samsung':'005930','samsungelectronics':'005930','삼성':'005930',
+  'sk하이닉스':'000660','skhynix':'000660','하이닉스':'000660',
+  '현대차':'005380','현대자동차':'005380','hyundai':'005380','현대':'005380',
+  'lg에너지솔루션':'373220','lges':'373220',
+  '삼성바이오로직스':'207940','삼성바이오':'207940',
+  'kb금융':'105560','kb':'105560',
+  '셀트리온':'068270','celltrion':'068270',
+  '신한지주':'055550','신한':'055550',
+  'lg화학':'051910',
+  '카카오뱅크':'323410',
+  '하나금융지주':'086790','하나금융':'086790','하나':'086790',
+  '기아':'000270','kia':'000270',
+  'posco홀딩스':'005490','포스코':'005490','posco':'005490',
+  '삼성sdi':'006400',
+  'lg전자':'066570',
+  '현대모비스':'012330','모비스':'012330',
+  '삼성물산':'028260',
+  'sk이노베이션':'096770','sk이노':'096770',
+  '삼성생명':'032830',
+  '카카오':'035720','kakao':'035720',
+  '셀트리온헬스케어':'091990',
+  '에코프로비엠':'247540','에코프로bm':'247540',
+  '에코프로':'086520',
+  '크래프톤':'259960','krafton':'259960',
+  '펄어비스':'263750','pearlabyss':'263750',
+  '카카오게임즈':'293490',
+  '엔씨소프트':'036570','ncsoft':'036570','엔씨':'036570',
+  '넷마블':'251270','netmarble':'251270'
+};
+
+var KR_TICKER_MKT = {
+  '005930':'ks','000660':'ks','005380':'ks','373220':'ks','207940':'ks',
+  '105560':'ks','068270':'ks','055550':'ks','051910':'ks','323410':'ks',
+  '086790':'ks','000270':'ks','005490':'ks','006400':'ks','066570':'ks',
+  '012330':'ks','028260':'ks','096770':'ks','032830':'ks',
+  '035720':'kq','091990':'kq','247540':'kq','086520':'kq','066970':'kq',
+  '259960':'kq','263750':'kq','293490':'kq','036570':'kq','251270':'kq'
+};
+
+var MKT_SUFFIX = {us:'', ks:'.KS', kq:'.KQ'};
+var MKT_HINTS  = {
+  us: '예: SCHD, QQQ, JEPI, CONY, TSLA, NVDA',
+  ks: '티커: 005930 또는 이름: 삼성전자, 현대차, SK하이닉스',
+  kq: '티커: 035720 또는 이름: 카카오, 에코프로, 크래프톤'
+};
+
+// ═══════════════════════════════════════════
+//  FORMAT HELPERS
+// ═══════════════════════════════════════════
+function getFX() { return parseFloat(document.getElementById('rate-inp').value) || 1450; }
+
+function fmtUSD(v) {
+  var s = v < 0 ? '-' : ''; var a = Math.abs(v);
+  if (a < 1) return s + '$' + a.toFixed(2);
+  return s + '$' + Math.round(a).toLocaleString('en-US');
+}
+
+function fmtKRW(v) {
+  var w = v * getFX(); var s = w < 0 ? '-' : ''; w = Math.abs(w);
+  if (w >= 100000000) return s + '₩' + (w / 100000000).toFixed(2) + '억';
+  if (w >= 10000)     return s + '₩' + (w / 10000).toFixed(1) + '만';
+  return s + '₩' + Math.round(w).toLocaleString('ko-KR');
+}
+
+function fP(usd) { return mode === 'krw' ? fmtKRW(usd) : fmtUSD(usd); }
+function fA(usd) { return mode === 'krw' ? fmtUSD(usd) : fmtKRW(usd); }
+function fPct(n) { return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
+
+function usdToMan(usd) { return usd * getFX() / 10000; }
+function manToUsd(mw)  { return mw * 10000 / getFX(); }
+function fmtMan(usd)   { return usdToMan(usd).toFixed(1); }
+
+function setSt(id, msg, cls) {
+  var el = document.getElementById(id);
+  el.className = (id === 'fx-st' ? 'fx-st' : 'tk-st') + (cls ? ' ' + cls : '');
+  el.innerHTML = msg;
+}
+
+// ═══════════════════════════════════════════
+//  MODE SWITCH (USD ↔ KRW)
+// ═══════════════════════════════════════════
+function setMode(m) {
+  if (isKoreanStock && m === 'usd') return;
+  mode = m;
+  document.getElementById('btn-usd').className = 'cur-btn' + (m === 'usd' ? ' on' : '');
+  document.getElementById('btn-krw').className = 'cur-btn' + (m === 'krw' ? ' on' : '');
+  renderAll();
+}
+
+function setMkt(m) {
+  mkt = m;
+  ['us','ks','kq'].forEach(function(k) {
+    document.getElementById('mkt-' + k).className = 'mkt-btn' + (k === m ? ' on' : '');
+  });
+  document.getElementById('mkt-hint').textContent = MKT_HINTS[m];
+  document.getElementById('ticker-input').value = m === 'us' ? 'SCHD' : '';
+  document.getElementById('ticker-input').focus();
+}
+
+// ═══════════════════════════════════════════
+//  RENDER ALL
+// ═══════════════════════════════════════════
+function renderAll() {
+  var s = sim;
+
+  function pair(pi, ai, v) {
+    document.getElementById(pi).textContent = fP(v);
+    document.getElementById(ai).textContent = fA(v);
+  }
+  pair('c-total',  'c-total-alt',  s.fin);
+  pair('c-inv',    'c-inv-alt',    s.inv);
+  pair('c-profit', 'c-profit-alt', s.profit);
+  document.getElementById('c-divyr').textContent     = fP(s.annDiv) + '/년';
+  document.getElementById('c-divyr-alt').textContent = fA(s.annDiv) + '/년';
+  document.getElementById('c-shares').textContent = s.shares.toFixed(2) + ' 주';
+  var re = document.getElementById('c-ret');
+  re.textContent = fPct(s.retPct);
+  re.style.color = s.retPct >= 0 ? 'var(--green)' : 'var(--red)';
+
+  document.getElementById('alt-init').textContent     = fmtUSD(usdInit);
+  document.getElementById('alt-monthly').textContent  = fmtUSD(usdMonthly) + '/월';
+  document.getElementById('alt-withdraw').textContent = fmtUSD(usdWithdraw) + '/월';
+
+  renderTable(s);
+}
+
+// ═══════════════════════════════════════════
+//  RENDER TABLE 
+// ═══════════════════════════════════════════
+function renderTable(s) {
+  var Y = parseInt(document.getElementById('inp-years').value) || 20;
+  var monthly = (Y === 1);
+  document.getElementById('tbl-title').textContent = monthly ? '월별 상세' : '연도별 상세';
+
+  var headHtml = '<tr>'
+    + '<th style="text-align:left">' + (monthly ? '월' : '시점') + '</th>'
+    + '<th>주가</th><th>주수</th>'
+    + '<th>평가금액</th>'
+    + '<th>' + (drip ? '배당누계' : '잔여현금') + '</th><th>수익률</th><th>' + (monthly ? '월배당' : '연배당') + '</th>'
+    + '</tr>';
+  document.getElementById('tbl-head').innerHTML = headHtml;
+
+  var h = '';
+  for (var i = 0; i < s.rows.length; i++) {
+    var r = s.rows[i];
+    var rc = r.ret >= 0 ? 'var(--green)' : 'var(--red)';
+    var label = monthly ? r.yr + '개월' : r.yr + '년후';
+    h += '<tr>'
+      + '<td>' + label + '</td>'
+      + '<td>' + (isKoreanStock ? '₩' + Math.round(r.price * getFX()).toLocaleString() : '$' + r.price.toFixed(2)) + '</td>'
+      + '<td>' + r.shares.toFixed(1) + '</td>'
+      + '<td style="font-weight:700;color:var(--blue)">' + fP(r.tv) + '<span class="td2">' + fA(r.tv) + '</span></td>'
+      + '<td style="color:var(--green)">' + fP(r.da) + '<span class="td2">' + fA(r.da) + '</span></td>'
+      + '<td style="font-weight:700;color:' + rc + '">' + fPct(r.ret) + '</td>'
+      + '<td style="color:var(--green)">' + fP(r.ad) + '<span class="td2">' + fA(r.ad) + '</span></td>'
+      + '</tr>';
+  }
+  document.getElementById('tbody').innerHTML = h;
+}
+
+// ═══════════════════════════════════════════
+//  FETCH FX
+// ═══════════════════════════════════════════
+function fetchFX() {
+  var btn = document.getElementById('btn-fx');
+  var txt = document.getElementById('btn-fx-txt');
+  btn.disabled = true;
+  txt.innerHTML = '<span class="spin"></span>';
+  setSt('fx-st', '');
+
+  return fetch('https://open.er-api.com/v6/latest/USD')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.result !== 'success') throw new Error('API오류');
+      var rate = Math.round(d.rates.KRW);
+      document.getElementById('rate-inp').value = rate;
+      setSt('fx-st', '✓ 실시간: 1 USD = ₩' + rate.toLocaleString(), 'ok');
+      txt.textContent = '현재환율';
+      setTimeout(function() { setSt('fx-st', ''); }, 3000);
+      btn.disabled = false;
+      return rate;
+    })
+    .catch(function(e) {
+      setSt('fx-st', '⚠ ' + e.message, 'err');
+      txt.textContent = '현재환율';
+      btn.disabled = false;
+      return getFX();
+    });
+}
+
+document.getElementById('rate-inp').addEventListener('input', function() {
+  document.getElementById('inp-init').value    = fmtMan(usdInit);
+  document.getElementById('inp-monthly').value = fmtMan(usdMonthly);
+  document.getElementById('inp-withdraw').value= fmtMan(usdWithdraw);
+  renderAll(); update();
+});
+
+// ═══════════════════════════════════════════
+//  TICKER FETCH (병렬 처리 방식 적용 - 속도 대폭 개선)
+// ═══════════════════════════════════════════
+document.getElementById('ticker-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') fetchTicker();
+});
+
+function resolveKorean(raw) {
+  if (/^\d{5,6}$/.test(raw)) return { code: raw, mktSuffix: '.' + (KR_TICKER_MKT[raw] || 'KS').toUpperCase() };
+  var key = raw.toLowerCase().replace(/\s+/g, '');
+  if (KR_STOCKS[key]) {
+    var code = KR_STOCKS[key];
+    return { code: code, mktSuffix: '.' + (KR_TICKER_MKT[code] || 'KS').toUpperCase() };
+  }
+  var keys = Object.keys(KR_STOCKS);
+  for (var i = 0; i < keys.length; i++) {
+    if (keys[i].indexOf(key) >= 0 || key.indexOf(keys[i]) >= 0) {
+      var code = KR_STOCKS[keys[i]];
+      return { code: code, mktSuffix: '.' + (KR_TICKER_MKT[code] || 'KS').toUpperCase() };
+    }
+  }
+  return { code: raw.toUpperCase(), mktSuffix: MKT_SUFFIX[mkt] || '.KS' };
+}
+
+function buildUrls(ticker, yrs) {
+  var sfx = '?interval=1mo&range=' + yrs + 'y&events=div&includeAdjustedClose=true';
+  var urls = [];
+  for (var ei = 0; ei < ENDPOINTS.length; ei++) {
+    var base = ENDPOINTS[ei] + encodeURIComponent(ticker) + sfx;
+    urls.push(base);  
+    for (var pi = 0; pi < PROXIES.length; pi++) {
+      urls.push(PROXIES[pi](base));
+    }
+  }
+  return urls;
+}
+
+// 속도 최적화: 병렬 Race 로직 적용 (가장 빨리 응답하는 데이터를 바로 사용)
+function tryUrlFast(urls) {
+  return new Promise(function(resolve, reject) {
+    var errors = 0;
+    var resolved = false;
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+
+    urls.forEach(function(u) {
+      fetch(u, {
+        headers: { 'Accept': 'application/json', 'x-requested-with': 'XMLHttpRequest' },
+        signal: ctrl ? ctrl.signal : undefined
+      })
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(function(t) {
+        var d = JSON.parse(t);
+        if (!d || !d.chart || !d.chart.result || !d.chart.result[0]) throw new Error('No data');
+        if (!resolved) {
+          resolved = true;
+          if (ctrl) ctrl.abort(); 
+          resolve(d);
+        }
+      })
+      .catch(function(e) {
+        errors++;
+        if (errors === urls.length && !resolved) reject(new Error('데이터 호출에 실패했습니다.'));
+      });
+    });
+
+    setTimeout(function() {
+      if (!resolved) reject(new Error('응답 지연 (8초 초과)'));
+    }, 8000);
+  });
+}
+
+function fetchTicker() {
+  var rawInput = document.getElementById('ticker-input').value.trim();
+  if (!rawInput) return;
+
+  var ticker, iKorean = false, resolvedCode = '';
+
+  if (mkt !== 'us') {
+    var res = resolveKorean(rawInput);
+    resolvedCode = res.code;
+    ticker = resolvedCode + res.mktSuffix;
+    iKorean = true;
+    document.getElementById('ticker-input').value = resolvedCode + res.mktSuffix;
+  } else {
+    ticker = rawInput.toUpperCase();
+    if (ticker.endsWith('.KS') || ticker.endsWith('.KQ')) iKorean = true;
+  }
+
+  isKoreanStock = iKorean;
+  if (iKorean) {
+    mode = 'krw';
+    document.getElementById('btn-usd').className = 'cur-btn';
+    document.getElementById('btn-krw').className = 'cur-btn on';
+    document.getElementById('btn-usd').style.opacity = '.4';
+    document.getElementById('btn-usd').style.pointerEvents = 'none';
+  } else {
+    document.getElementById('btn-usd').style.opacity = '';
+    document.getElementById('btn-usd').style.pointerEvents = '';
+  }
+
+  var yrs = parseInt(document.getElementById('hist-years').value);
+  var btn = document.getElementById('btn-search');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>';
+  document.getElementById('sb-name-row').style.display = 'none';
+  setSt('search-st', '<span class="spin"></span> 검색 중 (' + ticker + ')…', 'ld');
+
+  // 병렬 호출 실행
+  tryUrlFast(buildUrls(ticker, yrs))
+    .then(function(data) {
+      var r    = data.chart.result[0];
+      var meta = r.meta || {};
+      var adj  = r.indicators && r.indicators.adjclose && r.indicators.adjclose[0] && r.indicators.adjclose[0].adjclose;
+      var rawCl= r.indicators && r.indicators.quote    && r.indicators.quote[0]    && r.indicators.quote[0].close;
+      var closes = adj || rawCl || [];
+      var stamps = r.timestamp || [];
+      var divEvt = (r.events && r.events.dividends) || {};
+
+      var rawP = meta.regularMarketPrice || meta.chartPreviousClose ||
+        (function() { var f = closes.filter(function(v) { return v != null && v > 0; }); return f.length ? f[f.length-1] : 0; })() || 0;
+      curP = iKorean ? rawP / getFX() : rawP;
+      if (curP <= 0) curP = 30;
+
+      document.getElementById('hdr-price').textContent = iKorean
+        ? '₩' + Math.round(rawP).toLocaleString('ko-KR')
+        : '$' + curP.toFixed(2);
+      document.getElementById('hdr-date').textContent = new Date().toLocaleDateString('ko-KR');
+
+      var valid = [];
+      for (var i = 0; i < closes.length; i++) {
+        if (closes[i] != null && closes[i] > 0) valid.push({ v: closes[i], t: stamps[i] });
+      }
+      var pCagr = 6;
+      if (valid.length >= 6) {
+        var yf = (valid[valid.length-1].t - valid[0].t) / (365.25 * 86400);
+        if (yf > 0.4) pCagr = (Math.pow(valid[valid.length-1].v / valid[0].v, 1 / yf) - 1) * 100;
+      }
+
+      var divList = Object.values(divEvt).sort(function(a, b) { return a.date - b.date; });
+      var nowS    = Date.now() / 1000;
+      var ttmSum  = divList.filter(function(d) { return d.date > nowS - 365.25 * 86400; })
+                           .reduce(function(s, d) { return s + d.amount; }, 0);
+      var refP    = rawP > 0 ? rawP : (valid.length ? valid[valid.length-1].v : 1);
+      var ttmY    = (refP > 0 && ttmSum > 0) ? (ttmSum / refP) * 100 : 0;
+
+      // 배당성장률 계산 방식 개선 (연 3회 이상 정상 배당금 지급 기준)
+      var byY = {}, countY = {};
+      divList.forEach(function(d) {
+        var y = new Date(d.date * 1000).getFullYear();
+        byY[y] = (byY[y] || 0) + d.amount;
+        countY[y] = (countY[y] || 0) + 1;
+      });
+      var curYear = new Date().getFullYear();
+      var yks = Object.keys(byY).map(Number).sort(function(a,b){return a-b;});
+      var filtYks = yks.filter(function(y) { return y < curYear && countY[y] >= 3; });
+      
+      var dCagr = 5;
+      if (filtYks.length >= 2) {
+        var v0 = byY[filtYks[0]], v1 = byY[filtYks[filtYks.length-1]], span = filtYks[filtYks.length-1] - filtYks[0];
+        if (v0 > 0 && v1 > 0 && span > 0) dCagr = (Math.pow(v1 / v0, 1 / span) - 1) * 100;
+      }
+
+      var name = meta.longName || meta.shortName || ticker;
+      document.getElementById('ph-yield').textContent     = ttmY.toFixed(2) + '%';
+      document.getElementById('ph-cagr').textContent      = fPct(pCagr);
+      document.getElementById('tick-fullname').textContent = name.length > 30 ? name.slice(0, 30) + '…' : name;
+      document.getElementById('tick-yr').textContent       = '(' + yrs + '년 기준)';
+      document.getElementById('sb-name-row').style.display = 'block';
+
+      document.getElementById('sl-growth').value  = Math.min(30,  Math.max(-15, parseFloat(pCagr.toFixed(1))));
+      document.getElementById('sl-dyield').value  = Math.min(100, Math.max(0,   parseFloat(ttmY.toFixed(2))));
+      document.getElementById('sl-dgrowth').value = Math.min(30,  Math.max(-5,  parseFloat(dCagr.toFixed(1))));
+      ['growth','yield','dgrowth'].forEach(function(k) {
+        document.getElementById('badge-' + k).style.display = 'inline-block';
+      });
+
+      usdWithdraw = Math.max(0, curP * (ttmY / 100) / 12);
+      document.getElementById('inp-withdraw').value = fmtMan(usdWithdraw);
+
+      setSt('search-st',
+        '✓ ' + name.slice(0, 20)
+        + ' | CAGR ' + fPct(pCagr)
+        + ' · 배당 ' + ttmY.toFixed(2) + '%'
+        + ' · 배당성장 ' + fPct(dCagr)
+        + (iKorean ? ' [원화]' : ''),
+        'ok');
+      update();
+    })
+    .catch(function(e) {
+      setSt('search-st', '⚠ 실패: ' + e.message + ' — 다른 티커나 시장을 시도해보세요', 'err');
+    })
+    .then(function() {
+      btn.disabled = false;
+      btn.innerHTML = '검색';
+    });
+}
+
+// ═══════════════════════════════════════════
+//  INPUT LISTENERS
+// ═══════════════════════════════════════════
+document.getElementById('inp-init').addEventListener('input', function() {
+  usdInit = manToUsd(parseFloat(this.value) || 0); update();
+});
+document.getElementById('inp-monthly').addEventListener('input', function() {
+  usdMonthly = manToUsd(parseFloat(this.value) || 0); update();
+});
+document.getElementById('inp-withdraw').addEventListener('input', function() {
+  usdWithdraw = manToUsd(parseFloat(this.value) || 0); update();
+});
+document.getElementById('inp-years').addEventListener('input', function() {
+  var Y = parseInt(this.value) || 1;
+  document.getElementById('period-months').textContent = (Y * 12).toLocaleString() + '개월';
+  update();
+});
+['sl-growth','sl-dyield','sl-dgrowth'].forEach(function(id) {
+  document.getElementById(id).addEventListener('input', update);
+});
+
+// ═══════════════════════════════════════════
+//  DRIP / SCENARIO
+// ═══════════════════════════════════════════
+function setDrip(v) {
+  drip = v;
+  document.getElementById('btn-drip-on').className  = 'tbtn' + (v  ? ' on' : '');
+  document.getElementById('btn-drip-off').className = 'tbtn' + (!v ? ' on' : '');
+  document.getElementById('wdraw-row').className    = 'wdraw' + (v ? '' : ' show');
+  update();
+}
+function setScenario(s) {
+  ['bear','base','bull'].forEach(function(id) { document.getElementById('btn-' + id).className = 'tbtn ' + id; });
+  document.getElementById('btn-' + s).className = 'tbtn ' + s + ' on';
+  document.getElementById('badge-growth').style.display = 'none';
+  document.getElementById('sl-growth').value = { bear:0, base:6, bull:10 }[s];
+  update();
+}
+
+// ═══════════════════════════════════════════
+//  CALCULATION (현금수령 및 인출 로직 수정 적용)
+// ═══════════════════════════════════════════
+function update() {
+  var P  = usdInit;
+  var M  = usdMonthly;
+  var W  = drip ? 0 : usdWithdraw;
+  var Y  = parseInt(document.getElementById('inp-years').value) || 20;
+  var aG = parseFloat(document.getElementById('sl-growth').value) / 100;
+  var dY = parseFloat(document.getElementById('sl-dyield').value) / 100;
+  var dG = parseFloat(document.getElementById('sl-dgrowth').value) / 100;
+  var mG = Math.pow(1 + aG, 1/12) - 1;
+  var EXP = 0.0006;
+
+  document.getElementById('o-growth').textContent  = (aG * 100).toFixed(1) + '%';
+  document.getElementById('o-dyield').textContent  = (dY * 100).toFixed(2) + '%';
+  document.getElementById('o-dgrowth').textContent = (dG * 100).toFixed(1) + '%';
+  document.getElementById('period-months').textContent = (Y * 12).toLocaleString() + '개월';
+
+  var isMonthly = (Y === 1);
+  var price = curP, shares = price > 0 ? P / price : 0;
+  var inv = P, cash = 0, curDY = dY;
+  
+  var cumDiv = 0;          // 지금까지 발생한 총 누적 배당금
+  var totalWithdrawn = 0;  // 사용자가 실제로 계좌에서 인출해 간 총 금액
+
+  var labels = [], pA = [], dA = [], gA = [], rows = [];
+  var totalSteps = isMonthly ? Y * 12 : Y * 12;
+
+  for (var m = 0; m <= totalSteps; m++) {
+    if (m > 0) {
+      price *= (1 + mG) * (1 - EXP / 12);
+      if (M > 0) { shares += M / price; inv += M; }
+      
+      // 분기 배당 지급
+      if (m % 3 === 0) {
+        var qd = shares * curDY * price / 4;
+        cumDiv += qd;
+        if (drip) {
+          shares += qd / price;
+        } else {
+          cash += qd; 
+        }
+      }
+      
+      // 현금수령 모드에서의 월 인출 처리 (논리 개선)
+      if (!drip && W > 0) {
+        if (cash >= W) {
+          cash -= W;
+          totalWithdrawn += W;
+        } else {
+          // 현금이 인출액보다 부족할 경우 주식을 매도하여 충당
+          var shortfall = W - cash;
+          totalWithdrawn += cash;
+          cash = 0;
+          var sharesToSell = shortfall / price;
+          if (shares > sharesToSell) {
+            shares -= sharesToSell;
+            totalWithdrawn += shortfall;
+          } else {
+            totalWithdrawn += (shares * price);
+            shares = 0;
+          }
+        }
+      }
+      
+      if (m % 12 === 0) curDY *= (1 + dG);
+    }
+
+    var doRecord = isMonthly ? true : (m % 12 === 0);
+    if (doRecord) {
+      var step = isMonthly ? m : m / 12;
+      var tv = shares * price + cash; // 최종 평가금액 (보유주식가치 + 잔여현금)
+      
+      // 차트용 분리 (차트의 세 막대 합이 항상 tv와 일치하도록 보정)
+      var dChart = drip ? cumDiv : cash;
+      var pChart = inv;
+      var gChart = tv - inv - dChart; // 총 수익 (자본차익)
+
+      var adVal = isMonthly ? shares * price * curDY / 12 : shares * price * curDY;
+
+      labels.push(isMonthly ? step + '개월' : step + '년');
+      pA.push(Math.round(pChart)); 
+      dA.push(Math.round(dChart)); 
+      gA.push(Math.round(gChart));
+
+      var shouldRecord = isMonthly
+        ? (step % 2 === 0 || step === totalSteps)
+        : (step > 0 && (step % 5 === 0 || step === Y || step === 1 || step === 3));
+
+      if (shouldRecord && step > 0) {
+        rows.push({
+          yr: step, price: price, shares: shares, tv: tv, inv: inv,
+          da: dChart, ad: adVal, 
+          // 수익률 계산 시 인출액을 더해야 올바른 자산 성장률 판단 가능
+          ret: inv > 0 ? (tv + totalWithdrawn - inv) / inv * 100 : 0
+        });
+      }
+    }
+  }
+
+  var finalTv = shares * price + cash; 
+  sim = {
+    fin: finalTv, 
+    inv: inv, 
+    profit: (finalTv + totalWithdrawn) - inv, // 총수익 = 평가금액 + 인출현금 - 원금
+    annDiv: shares * price * curDY,
+    retPct: inv > 0 ? ((finalTv + totalWithdrawn) - inv) / inv * 100 : 0,
+    shares: shares, 
+    rows: rows, labels: labels, pA: pA, dA: dA, gA: gA
+  };
+  renderAll();
+
+  if (myChart) {
+    myChart.data.labels = labels;
+    myChart.data.datasets[0].data = gA;
+    myChart.data.datasets[1].data = dA;
+    myChart.data.datasets[2].data = pA;
+    myChart.update();
+  } else {
+    myChart = new Chart(document.getElementById('myChart'), {
+      type: 'bar',
+      data: { labels: labels, datasets: [
+        { label:'주가상승', data:gA, backgroundColor:'#2563eb', stack:'a' },
+        { label:(drip ? '배당누계' : '잔여현금'), data:dA, backgroundColor:'#059669', stack:'a' },
+        { label:'원금',     data:pA, backgroundColor:'#d1d5db', stack:'a' }
+      ]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { return ' ' + c.dataset.label + ': ' + fP(c.parsed.y); } } } },
+        scales: {
+          x: { stacked:true, ticks:{ color:'#9da5bc', font:{size:10}, autoSkip:true, maxTicksLimit:8 }, grid:{display:false} },
+          y: { stacked:true, ticks:{ color:'#9da5bc', font:{size:10}, callback: function(v) { return fP(v); } }, grid:{ color:'rgba(0,0,0,0.04)' } }
+        }
+      }
+    });
+  }
+}
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+setScenario('bull');
+setMode('krw');
+
+function initDefaults(fx) {
+  var rate = fx || getFX();
+  usdInit     = 1000 * 10000 / rate;  
+  usdMonthly  = 0;
+  usdWithdraw = 0;
+  document.getElementById('inp-init').value    = '1000.0';
+  document.getElementById('inp-monthly').value = '0.0';
+  document.getElementById('inp-withdraw').value= '0.0';
+  document.getElementById('inp-years').value   = '20';
+  document.getElementById('period-months').textContent = '240개월';
+  renderAll();
+  update();
+}
+
+fetchFX().then(function(rate) {
+  initDefaults(rate);
+  document.getElementById('ticker-input').value = 'SCHD';
+}).catch(function() {
+  initDefaults();
+  document.getElementById('ticker-input').value = 'SCHD';
+});
+</script>
+</body>
+</html>
