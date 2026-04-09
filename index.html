@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4f6fb">
-<title>배당 복리 계산기 v2.1 (4중 API)</title>
+<title>배당 복리 계산기 v2.2 (Ultimate)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root{
@@ -246,7 +246,7 @@ tr:nth-child(even) td{background:var(--card2);}
     <div class="m-alt"  id="c-inv-alt"></div>
   </div>
   <div class="metric">
-    <span class="m-lbl">총 수익 (인출포함)</span>
+    <span class="m-lbl">총 수익 (인출액 포함)</span>
     <div class="m-pri green" id="c-profit">—</div>
     <div class="m-alt"       id="c-profit-alt"></div>
   </div>
@@ -331,7 +331,7 @@ tr:nth-child(even) td{background:var(--card2);}
   </div>
 </div>
 
-<p class="disc">v2.1 · 4-Layer API Fallback · 월배당 자동감지 · 배당소득세 완벽적용</p>
+<p class="disc">v2.2 · 4-Layer API Fallback · 배당성장률 완벽보정 · 배당소득세 적용</p>
 </div>
 
 <script>
@@ -353,7 +353,8 @@ var ENDPOINTS = ['https://query1.finance.yahoo.com/v8/finance/chart/', 'https://
 var PROXIES = [
   function(u){ return 'https://corsproxy.io/?url=' + encodeURIComponent(u); },
   function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
-  function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }
+  function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
+  function(u){ return 'https://cors-anywhere.herokuapp.com/' + u; }
 ];
 
 var KR_STOCKS = {
@@ -458,7 +459,7 @@ function toggleScenario() {
 function updateCustomScenario() { if(scArr[scIdx].id==='custom'){ document.getElementById('sl-growth').value=parseFloat(document.getElementById('inp-custom-rate').value)||0; update(); } }
 
 // ═══════════════════════════════════════════
-//  FETCH MULTI-LAYER LOGIC
+//  FETCH MULTI-LAYER LOGIC (With Partial Year Fix)
 // ═══════════════════════════════════════════
 function fetchFX() {
   var btn=document.getElementById('btn-fx'), txt=document.getElementById('btn-fx-txt');
@@ -479,6 +480,21 @@ function resolveKorean(raw) {
   var keys=Object.keys(KR_STOCKS);
   for(var i=0;i<keys.length;i++) if(keys[i].indexOf(key)>=0 || key.indexOf(keys[i])>=0) return {code:KR_STOCKS[keys[i]], mktSuffix:'.'+(KR_TICKER_MKT[KR_STOCKS[keys[i]]]||'KS').toUpperCase()};
   return {code:raw.toUpperCase(), mktSuffix:MKT_SUFFIX[mkt]||'.KS'};
+}
+
+// Partial Year Filter Logic
+function getDCAGR(byY, countY) {
+  var maxP=0; Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;}); 
+  // 분기배당이면 4번(최소3번), 월배당이면 12번(최소11번) 온전히 지급한 해만 필터링
+  var minReq = maxP>10 ? 11 : (maxP>2 ? 3 : 1);
+  var curY = new Date().getFullYear();
+  var filtYks = Object.keys(byY).map(Number).sort((a,b)=>a-b).filter(y => y < curY && countY[y] >= minReq);
+  
+  if(filtYks.length>=2){ 
+    var v0=byY[filtYks[0]], v1=byY[filtYks[filtYks.length-1]], span=filtYks[filtYks.length-1]-filtYks[0]; 
+    if(v0>0 && v1>0 && span>0) return (Math.pow(v1/v0, 1/span) - 1) * 100; 
+  }
+  return 5; // Default fallback
 }
 
 // Layer 1: Alpha Vantage
@@ -504,9 +520,8 @@ async function fetchAV(ticker, yrs) {
   
   dates.forEach(d=>{ var div=parseFloat(ts[d]["7. dividend amount"]||0); if(div>0){ var y=d.substring(0,4); byY[y]=(byY[y]||0)+div; countY[y]=(countY[y]||0)+1; } });
   
-  var maxP=0; Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;}); var minReq=maxP>10?11:(maxP>2?3:1);
-  var dCagr=5, curY=new Date().getFullYear(), filtYks=Object.keys(byY).map(Number).sort((a,b)=>a-b).filter(y=>y<curY && countY[y]>=minReq);
-  if(filtYks.length>=2){ var v0=byY[filtYks[0]], v1=byY[filtYks[filtYks.length-1]], span=filtYks[filtYks.length-1]-filtYks[0]; if(v0>0&&v1>0&&span>0) dCagr=(Math.pow(v1/v0,1/span)-1)*100; }
+  var dCagr = getDCAGR(byY, countY);
+  var maxP = 0; Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;});
   
   return { name: ticker, rawP, pCagr, ttmY, dCagr, maxP, src: "Alpha Vantage" };
 }
@@ -538,9 +553,8 @@ async function fetchFMP(ticker, yrs) {
     
     var byY={}, countY={};
     divs.forEach(d=>{ var y=d.date.substring(0,4); byY[y]=(byY[y]||0)+d.adjDividend; countY[y]=(countY[y]||0)+1; });
-    Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;}); var minReq=maxP>10?11:(maxP>2?3:1);
-    var filtYks=Object.keys(byY).map(Number).sort((a,b)=>a-b).filter(y=>y<now.getFullYear() && countY[y]>=minReq);
-    if(filtYks.length>=2){ var v0=byY[filtYks[0]], v1=byY[filtYks[filtYks.length-1]], span=filtYks[filtYks.length-1]-filtYks[0]; if(v0>0&&v1>0&&span>0) dCagr=(Math.pow(v1/v0,1/span)-1)*100; }
+    dCagr = getDCAGR(byY, countY);
+    Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;});
   }
   return { name, rawP, pCagr, ttmY, dCagr, maxP, src: "FMP" };
 }
@@ -571,9 +585,8 @@ async function fetchPolygon(ticker, yrs) {
     
     var byY={}, countY={};
     divs.forEach(d=>{ var y=d.pay_date.substring(0,4); byY[y]=(byY[y]||0)+d.cash_amount; countY[y]=(countY[y]||0)+1; });
-    Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;}); var minReq=maxP>10?11:(maxP>2?3:1);
-    var filtYks=Object.keys(byY).map(Number).sort((a,b)=>a-b).filter(y=>y<now.getFullYear() && countY[y]>=minReq);
-    if(filtYks.length>=2){ var v0=byY[filtYks[0]], v1=byY[filtYks[filtYks.length-1]], span=filtYks[filtYks.length-1]-filtYks[0]; if(v0>0&&v1>0&&span>0) dCagr=(Math.pow(v1/v0,1/span)-1)*100; }
+    dCagr = getDCAGR(byY, countY);
+    Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;});
   }
   return { name, rawP, pCagr, ttmY, dCagr, maxP, src: "Massive" };
 }
@@ -600,9 +613,9 @@ async function fetchYahoo(ticker, yrs) {
 
   var divL=Object.values(divEvt).sort((a,b)=>a.date-b.date), nowS=Date.now()/1000, ttmS=0, byY={}, countY={};
   divL.forEach(d=>{ if(d.date>nowS-31557600)ttmS+=d.amount; var y=new Date(d.date*1000).getFullYear(); byY[y]=(byY[y]||0)+d.amount; countY[y]=(countY[y]||0)+1; });
-  var ttmY=rawP>0?(ttmS/rawP)*100:0, maxP=0; Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;}); var minReq=maxP>10?11:(maxP>2?3:1);
-  var dCagr=5, curY=new Date().getFullYear(), filtYks=Object.keys(byY).map(Number).sort((a,b)=>a-b).filter(y=>y<curY && countY[y]>=minReq);
-  if(filtYks.length>=2){ var v0=byY[filtYks[0]], v1=byY[filtYks[filtYks.length-1]], span=filtYks[filtYks.length-1]-filtYks[0]; if(v0>0&&v1>0&&span>0) dCagr=(Math.pow(v1/v0,1/span)-1)*100; }
+  var ttmY=rawP>0?(ttmS/rawP)*100:0, maxP=0; Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;}); 
+  
+  var dCagr = getDCAGR(byY, countY);
 
   return { name: meta.longName||meta.shortName||ticker, rawP, pCagr, ttmY, dCagr, maxP, src: "Yahoo Proxy" };
 }
@@ -624,17 +637,16 @@ async function fetchTicker() {
   var result = null;
   // 한국 주식이 아니면 1~3번 API 차례대로 시도
   if (!iKorean) {
-    try { result = await fetchAV(ticker, yrs); console.log("AV Success"); } catch(e) { console.log("AV Fail"); }
-    if (!result) { try { result = await fetchFMP(ticker, yrs); console.log("FMP Success"); } catch(e) { console.log("FMP Fail"); } }
-    if (!result) { try { result = await fetchPolygon(ticker, yrs); console.log("Polygon Success"); } catch(e) { console.log("Polygon Fail"); } }
+    try { result = await fetchAV(ticker, yrs); } catch(e) {}
+    if (!result) { try { result = await fetchFMP(ticker, yrs); } catch(e) {} }
+    if (!result) { try { result = await fetchPolygon(ticker, yrs); } catch(e) {} }
   }
   // 다 실패하거나 한국 주식이면 Yahoo 시도
   if (!result) {
-    try { result = await fetchYahoo(ticker, yrs); console.log("Yahoo Success"); } 
+    try { result = await fetchYahoo(ticker, yrs); } 
     catch(e) { setSt('search-st', '⚠ 데이터 호출 실패. 다른 티커를 시도하세요.', 'err'); btn.disabled=false; btn.innerHTML='검색'; return; }
   }
 
-  // 결과 적용
   curP = iKorean ? result.rawP / getFX() : result.rawP;
   if(curP<=0) curP=30;
 
@@ -667,17 +679,12 @@ async function fetchTicker() {
 }
 
 // ═══════════════════════════════════════════
-//  INPUT LISTENERS & CORE CALCULATION
+//  CORE CALCULATION (Monthly Smoothing)
 // ═══════════════════════════════════════════
-document.getElementById('inp-init').addEventListener('input', function() { usdInit=manToUsd(parseFloat(this.value)||0); update(); });
-document.getElementById('inp-monthly').addEventListener('input', function() { usdMonthly=manToUsd(parseFloat(this.value)||0); update(); });
-document.getElementById('inp-withdraw').addEventListener('input', function() { usdWithdraw=manToUsd(parseFloat(this.value)||0); update(); });
-document.getElementById('inp-years').addEventListener('input', function() { var Y=parseInt(this.value)||1; document.getElementById('period-months').textContent=(Y*12).toLocaleString()+'개월'; update(); });
-['sl-growth','sl-dyield','sl-dgrowth'].forEach(function(id) { document.getElementById(id).addEventListener('input', function(){ update(); }); });
-
 function update() {
   var P=usdInit, M=usdMonthly, W=drip?0:usdWithdraw, Y=parseInt(document.getElementById('inp-years').value)||20;
   var aG=parseFloat(document.getElementById('sl-growth').value)/100, dY=parseFloat(document.getElementById('sl-dyield').value)/100, dG=parseFloat(document.getElementById('sl-dgrowth').value)/100;
+  
   var mG=Math.pow(1+aG, 1/12)-1, mDG=Math.pow(1+dG, 1/12)-1, EXP=0.0006;
   var taxRate=applyTax?(mkt==='us'?0.15:0.154):0;
 
