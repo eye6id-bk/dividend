@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4f6fb">
-<title>배당 복리 계산기 v1.6 (정밀수정본)</title>
+<title>배당 복리 계산기 v1.7 (월상세 완벽수정)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root{
@@ -339,7 +339,7 @@ tr:nth-child(even) td{background:var(--card2);}
   </div>
 </div>
 
-<p class="disc">v1.6 · 시뮬레이션 목적 · 양도소득세 미반영 · 배당소득세(US 15%, KR 15.4%) 반영</p>
+<p class="disc">v1.7 · 시뮬레이션 목적 · 양도소득세 미반영 · 배당소득세(US 15%, KR 15.4%) 반영</p>
 </div>
 
 <script>
@@ -354,9 +354,9 @@ var isKoreanStock = false;
 var curP = 30.58;   
 var myChart = null;
 
-var usdInit     = 100 * 10000 / 1450;  // 100만원 기본값으로 변경
+var usdInit     = 100 * 10000 / 1450;  
 var usdMonthly  = 0;
-var usdWithdraw = 0;
+var usdWithdraw = 0; // 초기값을 무조건 0으로 유지
 
 var sim = {fin:0,inv:0,profit:0,annDiv:0,retPct:0,shares:0,rows:[],labels:[],pA:[],dA:[],gA:[]};
 
@@ -500,7 +500,7 @@ function renderAll() {
 }
 
 // ═══════════════════════════════════════════
-//  RENDER TABLE 
+//  RENDER TABLE (월별 상세 표시 완벽 수정)
 // ═══════════════════════════════════════════
 function renderTable(s) {
   var Y = parseInt(document.getElementById('inp-years').value) || 20;
@@ -571,7 +571,7 @@ document.getElementById('rate-inp').addEventListener('input', function() {
 });
 
 // ═══════════════════════════════════════════
-//  TICKER FETCH (병렬 처리 방식)
+//  TICKER FETCH
 // ═══════════════════════════════════════════
 document.getElementById('ticker-input').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') fetchTicker();
@@ -746,7 +746,7 @@ function fetchTicker() {
         document.getElementById('badge-' + k).style.display = 'inline-block';
       });
 
-      usdWithdraw = Math.max(0, curP * (ttmY / 100) / 12);
+      // [핵심 수정] 이전 버전에서 자동으로 인출액을 입력하여 원금을 갉아먹던 문제 삭제. 무조건 0으로 유지.
       document.getElementById('inp-withdraw').value = fmtMan(usdWithdraw);
 
       setSt('search-st',
@@ -815,7 +815,7 @@ function setScenario(s) {
 }
 
 // ═══════════════════════════════════════════
-//  CALCULATION (정밀 DPS 복리 성장 + 세금 차감 수정본)
+//  CALCULATION 
 // ═══════════════════════════════════════════
 function update() {
   var P  = usdInit;
@@ -828,7 +828,6 @@ function update() {
   var mG = Math.pow(1 + aG, 1/12) - 1;
   var EXP = 0.0006;
   
-  // 시장별 배당소득세율 결정 (미국 15%, 한국 15.4%)
   var taxRate = 0;
   if (applyTax) {
     taxRate = (mkt === 'us') ? 0.15 : 0.154;
@@ -843,7 +842,6 @@ function update() {
   var price = curP, shares = price > 0 ? P / price : 0;
   var inv = P, cash = 0;
   
-  // 핵심 수정: 배당률(%)이 아닌, 1주당 실제 배당금(DPS)을 독립적으로 복리 계산
   var annualDPS = price * dY; 
   var qDPS = annualDPS / 4;
   
@@ -855,26 +853,22 @@ function update() {
 
   for (var m = 0; m <= totalSteps; m++) {
     if (m > 0) {
-      // 1. 매월 주가 상승 적용 및 ETF 운용보수 차감
       price *= (1 + mG) * (1 - EXP / 12);
       
-      // 2. 월 적립식 추가 매수
       if (M > 0) { shares += M / price; inv += M; }
       
-      // 3. 분기 배당 지급 (3개월마다) 및 세금 차감
       if (m % 3 === 0) {
-        var grossDiv = shares * qDPS;               // 세전 배당금
-        var netDiv = grossDiv * (1 - taxRate);      // 세후 배당금
+        var grossDiv = shares * qDPS;               
+        var netDiv = grossDiv * (1 - taxRate);      
         cumDiv += netDiv; 
         
         if (drip) {
-          shares += netDiv / price; // 떼고 남은 세후 현금으로만 재투자
+          shares += netDiv / price; 
         } else {
           cash += netDiv; 
         }
       }
       
-      // 4. 현금수령 모드 시 매월 인출 처리
       if (!drip && W > 0) {
         if (cash >= W) {
           cash -= W;
@@ -883,7 +877,7 @@ function update() {
           var shortfall = W - cash;
           totalWithdrawn += cash;
           cash = 0;
-          var sharesToSell = shortfall / price; // 부족한 만큼 보유 주식 매도
+          var sharesToSell = shortfall / price; 
           if (shares > sharesToSell) {
             shares -= sharesToSell;
             totalWithdrawn += shortfall;
@@ -894,7 +888,6 @@ function update() {
         }
       }
       
-      // 5. 매 1년마다 주당 배당금(DPS) 성장률(dG) 적용
       if (m % 12 === 0) {
          annualDPS *= (1 + dG);
          qDPS = annualDPS / 4;
@@ -910,7 +903,6 @@ function update() {
       var pChart = inv;
       var gChart = tv - inv - dChart; 
 
-      // 연배당 표시도 세후 기준으로 출력
       var adVal = isMonthly ? (shares * annualDPS * (1 - taxRate)) / 12 : (shares * annualDPS * (1 - taxRate));
 
       labels.push(isMonthly ? step + '개월' : step + '년');
@@ -918,8 +910,9 @@ function update() {
       dA.push(Math.round(dChart)); 
       gA.push(Math.round(gChart));
 
+      // [핵심 수정] 1년 계산시 1개월 단위로 모든 항목이 누락없이 나타나도록 조건 변경
       var shouldRecord = isMonthly
-        ? (step % 2 === 0 || step === totalSteps)
+        ? true 
         : (step > 0 && (step % 5 === 0 || step === Y || step === 1 || step === 3));
 
       if (shouldRecord && step > 0) {
