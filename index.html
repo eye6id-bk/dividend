@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4f6fb">
-<title>배당 복리 계산기 v1.5 (세금반영)</title>
+<title>배당 복리 계산기 v1.6 (정밀수정본)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root{
@@ -219,7 +219,7 @@ tr:nth-child(even) td{background:var(--card2);}
     <div class="inv-col">
       <div class="inv-lbl">초기 투자비</div>
       <div class="inv-row">
-        <input class="inv-inp" id="inp-init" type="number" value="1000" min="0" step="0.1" inputmode="decimal">
+        <input class="inv-inp" id="inp-init" type="number" value="100" min="0" step="0.1" inputmode="decimal">
         <span class="inv-unit" id="unit-init">만원</span>
       </div>
       <div class="inv-alt" id="alt-init"></div>
@@ -277,14 +277,14 @@ tr:nth-child(even) td{background:var(--card2);}
   </div>
   <div class="sl-b">
     <div class="sl-top">
-      <span class="sl-lbl">배당수익률 <span class="abadge" id="badge-yield">자동</span></span>
+      <span class="sl-lbl">초기 배당수익률 <span class="abadge" id="badge-yield">자동</span></span>
       <span class="sl-val green" id="o-dyield">3.43%</span>
     </div>
     <input type="range" id="sl-dyield" min="0" max="100" step="0.1" value="3.43">
   </div>
   <div class="sl-b">
     <div class="sl-top">
-      <span class="sl-lbl">연 배당 성장률 <span class="abadge" id="badge-dgrowth">자동</span></span>
+      <span class="sl-lbl">연 배당성장률(DPS) <span class="abadge" id="badge-dgrowth">자동</span></span>
       <span class="sl-val green" id="o-dgrowth">5.0%</span>
     </div>
     <input type="range" id="sl-dgrowth" min="-5" max="30" step="0.5" value="5">
@@ -339,7 +339,7 @@ tr:nth-child(even) td{background:var(--card2);}
   </div>
 </div>
 
-<p class="disc">v1.5 · 시뮬레이션 목적 · 양도소득세 미반영 · 배당소득세(US 15%, KR 15.4%) 반영 · Yahoo Finance 기준</p>
+<p class="disc">v1.6 · 시뮬레이션 목적 · 양도소득세 미반영 · 배당소득세(US 15%, KR 15.4%) 반영</p>
 </div>
 
 <script>
@@ -349,12 +349,12 @@ tr:nth-child(even) td{background:var(--card2);}
 var mode = 'krw';   
 var mkt  = 'us';    
 var drip = true;
-var applyTax = true; // 세금 적용 여부
+var applyTax = true; 
 var isKoreanStock = false;  
 var curP = 30.58;   
 var myChart = null;
 
-var usdInit     = 1000 * 10000 / 1450;  
+var usdInit     = 100 * 10000 / 1450;  // 100만원 기본값으로 변경
 var usdMonthly  = 0;
 var usdWithdraw = 0;
 
@@ -799,7 +799,6 @@ function setDrip(v) {
   update();
 }
 
-// 세금 토글 기능 추가
 function setTax(v) {
   applyTax = v;
   document.getElementById('btn-tax-on').className  = 'tbtn' + (v  ? ' on' : '');
@@ -816,7 +815,7 @@ function setScenario(s) {
 }
 
 // ═══════════════════════════════════════════
-//  CALCULATION (배당소득세 차감 로직 추가)
+//  CALCULATION (정밀 DPS 복리 성장 + 세금 차감 수정본)
 // ═══════════════════════════════════════════
 function update() {
   var P  = usdInit;
@@ -842,7 +841,11 @@ function update() {
 
   var isMonthly = (Y === 1);
   var price = curP, shares = price > 0 ? P / price : 0;
-  var inv = P, cash = 0, curDY = dY;
+  var inv = P, cash = 0;
+  
+  // 핵심 수정: 배당률(%)이 아닌, 1주당 실제 배당금(DPS)을 독립적으로 복리 계산
+  var annualDPS = price * dY; 
+  var qDPS = annualDPS / 4;
   
   var cumDiv = 0;          
   var totalWithdrawn = 0;  
@@ -852,22 +855,26 @@ function update() {
 
   for (var m = 0; m <= totalSteps; m++) {
     if (m > 0) {
+      // 1. 매월 주가 상승 적용 및 ETF 운용보수 차감
       price *= (1 + mG) * (1 - EXP / 12);
+      
+      // 2. 월 적립식 추가 매수
       if (M > 0) { shares += M / price; inv += M; }
       
-      // 분기 배당 지급 및 세금 차감 로직
+      // 3. 분기 배당 지급 (3개월마다) 및 세금 차감
       if (m % 3 === 0) {
-        var grossDiv = shares * curDY * price / 4;  // 세전 배당금
+        var grossDiv = shares * qDPS;               // 세전 배당금
         var netDiv = grossDiv * (1 - taxRate);      // 세후 배당금
         cumDiv += netDiv; 
         
         if (drip) {
-          shares += netDiv / price; // 세후 배당금으로만 재투자
+          shares += netDiv / price; // 떼고 남은 세후 현금으로만 재투자
         } else {
           cash += netDiv; 
         }
       }
       
+      // 4. 현금수령 모드 시 매월 인출 처리
       if (!drip && W > 0) {
         if (cash >= W) {
           cash -= W;
@@ -876,7 +883,7 @@ function update() {
           var shortfall = W - cash;
           totalWithdrawn += cash;
           cash = 0;
-          var sharesToSell = shortfall / price;
+          var sharesToSell = shortfall / price; // 부족한 만큼 보유 주식 매도
           if (shares > sharesToSell) {
             shares -= sharesToSell;
             totalWithdrawn += shortfall;
@@ -887,7 +894,11 @@ function update() {
         }
       }
       
-      if (m % 12 === 0) curDY *= (1 + dG);
+      // 5. 매 1년마다 주당 배당금(DPS) 성장률(dG) 적용
+      if (m % 12 === 0) {
+         annualDPS *= (1 + dG);
+         qDPS = annualDPS / 4;
+      }
     }
 
     var doRecord = isMonthly ? true : (m % 12 === 0);
@@ -900,7 +911,7 @@ function update() {
       var gChart = tv - inv - dChart; 
 
       // 연배당 표시도 세후 기준으로 출력
-      var adVal = isMonthly ? (shares * price * curDY * (1 - taxRate)) / 12 : (shares * price * curDY * (1 - taxRate));
+      var adVal = isMonthly ? (shares * annualDPS * (1 - taxRate)) / 12 : (shares * annualDPS * (1 - taxRate));
 
       labels.push(isMonthly ? step + '개월' : step + '년');
       pA.push(Math.round(pChart)); 
@@ -926,7 +937,7 @@ function update() {
     fin: finalTv, 
     inv: inv, 
     profit: (finalTv + totalWithdrawn) - inv, 
-    annDiv: shares * price * curDY * (1 - taxRate), // 최종 표시 연간 배당금도 세후 기준
+    annDiv: shares * annualDPS * (1 - taxRate), 
     retPct: inv > 0 ? ((finalTv + totalWithdrawn) - inv) / inv * 100 : 0,
     shares: shares, 
     rows: rows, labels: labels, pA: pA, dA: dA, gA: gA
@@ -967,10 +978,10 @@ setMode('krw');
 
 function initDefaults(fx) {
   var rate = fx || getFX();
-  usdInit     = 1000 * 10000 / rate;  
+  usdInit     = 100 * 10000 / rate;  
   usdMonthly  = 0;
   usdWithdraw = 0;
-  document.getElementById('inp-init').value    = '1000.0';
+  document.getElementById('inp-init').value    = '100.0';
   document.getElementById('inp-monthly').value = '0.0';
   document.getElementById('inp-withdraw').value= '0.0';
   document.getElementById('inp-years').value   = '20';
