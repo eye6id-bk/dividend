@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4f6fb">
-<title>배당 복리 계산기 v1.7 (월상세 완벽수정)</title>
+<title>배당 복리 계산기 v1.8 (완성본)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root{
@@ -142,6 +142,9 @@ td:first-child{text-align:left;color:var(--t2);font-family:inherit;font-size:11p
 tr:last-child td{border-bottom:none;}
 tr:nth-child(even) td{background:var(--card2);}
 
+/* Custom Input */
+.custom-inp{display:none; width:50px; height:30px; border:1.5px solid var(--blue); border-radius:8px; text-align:center; font-size:13px; font-weight:700; color:var(--t1); outline:none;}
+
 /* Spinner */
 .spin{display:inline-block;width:12px;height:12px;border:2.5px solid rgba(37,99,235,.18);border-top-color:var(--blue);border-radius:50%;animation:sp .5s linear infinite;flex-shrink:0;vertical-align:middle;}
 @keyframes sp{to{transform:rotate(360deg);}}
@@ -184,7 +187,7 @@ tr:nth-child(even) td{background:var(--card2);}
     <span class="mkt-lbl">시장</span>
     <button class="mkt-btn on" id="mkt-us" onclick="setMkt('us')">🇺🇸 미국</button>
     <button class="mkt-btn"   id="mkt-ks" onclick="setMkt('ks')">🇰🇷 코스피</button>
-    <button class="mkt-btn"   id="mkt-kq" onclick="setMkt('kq')">🇰🇷 코스닥</button>
+    <button class="mkt-btn"   id="mkt-kq" onclick="setMkt('kq')">🇰🇷 코닥</button>
   </div>
   <div class="mkt-hint" id="mkt-hint">예: SCHD, QQQ, JEPI, 삼성전자, 맥쿼리인프라</div>
 </div>
@@ -247,7 +250,7 @@ tr:nth-child(even) td{background:var(--card2);}
     <div class="m-alt"  id="c-inv-alt"></div>
   </div>
   <div class="metric">
-    <span class="m-lbl">총 수익 (총 인출액 포함)</span>
+    <span class="m-lbl">총 수익 (인출액 포함)</span>
     <div class="m-pri green" id="c-profit">—</div>
     <div class="m-alt"       id="c-profit-alt"></div>
   </div>
@@ -273,7 +276,7 @@ tr:nth-child(even) td{background:var(--card2);}
       <span class="sl-lbl">연 주가 상승률 <span class="abadge" id="badge-growth">자동</span></span>
       <span class="sl-val blue" id="o-growth">6.0%</span>
     </div>
-    <input type="range" id="sl-growth" min="-15" max="30" step="0.5" value="6">
+    <input type="range" id="sl-growth" min="-25" max="50" step="0.5" value="6">
   </div>
   <div class="sl-b">
     <div class="sl-top">
@@ -287,34 +290,31 @@ tr:nth-child(even) td{background:var(--card2);}
       <span class="sl-lbl">연 배당성장률(DPS) <span class="abadge" id="badge-dgrowth">자동</span></span>
       <span class="sl-val green" id="o-dgrowth">5.0%</span>
     </div>
-    <input type="range" id="sl-dgrowth" min="-5" max="30" step="0.5" value="5">
+    <input type="range" id="sl-dgrowth" min="-20" max="50" step="0.5" value="5">
   </div>
 </div>
 
 <div class="tgrp">
-  <span class="tg-lbl">DRIP:</span>
-  <button class="tbtn on" id="btn-drip-on"  onclick="setDrip(true)">재투자</button>
-  <button class="tbtn"    id="btn-drip-off" onclick="setDrip(false)">현금수령</button>
-  
-  <span class="tg-lbl" style="margin-left:4px">세금:</span>
-  <button class="tbtn on" id="btn-tax-on"  onclick="setTax(true)">반영(15~15.4%)</button>
-  <button class="tbtn"    id="btn-tax-off" onclick="setTax(false)">미반영</button>
+  <span class="tg-lbl">설정:</span>
+  <button class="tbtn on" id="btn-drip-toggle" onclick="toggleDrip()">재투자</button>
+  <button class="tbtn on" id="btn-tax-toggle" onclick="toggleTax()">세금: 반영(15%)</button>
 </div>
 
 <div class="tgrp">
   <span class="tg-lbl">시나리오:</span>
   <button class="tbtn bear" id="btn-bear" onclick="setScenario('bear')">약세 0%</button>
-  <button class="tbtn base" id="btn-base" onclick="setScenario('base')">기본 6%</button>
-  <button class="tbtn bull on" id="btn-bull" onclick="setScenario('bull')">강세 10%</button>
+  <button class="tbtn base on" id="btn-base" onclick="setScenario('base')">기본 6%</button>
+  <button class="tbtn bull" id="btn-bull" onclick="setScenario('bull')">강세 10%</button>
+  <button class="tbtn" id="btn-custom" onclick="setScenario('custom')">직접입력</button>
+  <input type="number" id="inp-custom-rate" class="custom-inp" value="-5" step="1" oninput="updateCustomScenario()">
 </div>
 
 <div class="wdraw" id="wdraw-row">
-  <label>매월 인출</label>
+  <label>매월 인출 (잔액 부족시 주식 매도)</label>
   <div class="wdraw-row">
     <input class="w-inp" id="inp-withdraw" type="number" value="0" min="0" step="0.1" inputmode="decimal">
     <span class="w-unit" id="w-unit">만원/월</span>
   </div>
-  <span class="w-alt" id="alt-withdraw"></span>
 </div>
 
 <div class="card pad">
@@ -339,7 +339,7 @@ tr:nth-child(even) td{background:var(--card2);}
   </div>
 </div>
 
-<p class="disc">v1.7 · 시뮬레이션 목적 · 양도소득세 미반영 · 배당소득세(US 15%, KR 15.4%) 반영</p>
+<p class="disc">v1.8 · 시뮬레이션 목적 · 양도소득세 미반영 · 배당소득세(US 15%, KR 15.4%) 반영</p>
 </div>
 
 <script>
@@ -350,13 +350,14 @@ var mode = 'krw';
 var mkt  = 'us';    
 var drip = true;
 var applyTax = true; 
+var currentScenario = 'base';
 var isKoreanStock = false;  
 var curP = 30.58;   
 var myChart = null;
 
 var usdInit     = 100 * 10000 / 1450;  
 var usdMonthly  = 0;
-var usdWithdraw = 0; // 초기값을 무조건 0으로 유지
+var usdWithdraw = 0; // 초기 인출액 절대 0으로 유지 (주식매도 방지)
 
 var sim = {fin:0,inv:0,profit:0,annDiv:0,retPct:0,shares:0,rows:[],labels:[],pA:[],dA:[],gA:[]};
 
@@ -365,10 +366,12 @@ var ENDPOINTS = [
   'https://query2.finance.yahoo.com/v8/finance/chart/'
 ];
 
+// Fetch 속도 개선 및 프록시 다양화
 var PROXIES = [
-  function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
   function(u){ return 'https://corsproxy.io/?url=' + encodeURIComponent(u); },
-  function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }
+  function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+  function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
+  function(u){ return 'https://cors-anywhere.herokuapp.com/' + u; } // Fallback
 ];
 
 var KR_STOCKS = {
@@ -414,9 +417,9 @@ var KR_TICKER_MKT = {
 
 var MKT_SUFFIX = {us:'', ks:'.KS', kq:'.KQ'};
 var MKT_HINTS  = {
-  us: '예: SCHD, QQQ, JEPI, CONY, TSLA, NVDA',
-  ks: '티커: 005930 또는 이름: 삼성전자, 맥쿼리인프라',
-  kq: '티커: 035720 또는 이름: 카카오, 에코프로, 크래프톤'
+  us: '예: SCHD, QQQ, JEPI, CONY, TSLA',
+  ks: '티커: 005930 또는 이름: 삼성전자, 맥쿼리',
+  kq: '티커: 035720 또는 이름: 카카오, 에코프로'
 };
 
 // ═══════════════════════════════════════════
@@ -494,13 +497,12 @@ function renderAll() {
 
   document.getElementById('alt-init').textContent     = fmtUSD(usdInit);
   document.getElementById('alt-monthly').textContent  = fmtUSD(usdMonthly) + '/월';
-  document.getElementById('alt-withdraw').textContent = fmtUSD(usdWithdraw) + '/월';
-
+  
   renderTable(s);
 }
 
 // ═══════════════════════════════════════════
-//  RENDER TABLE (월별 상세 표시 완벽 수정)
+//  RENDER TABLE
 // ═══════════════════════════════════════════
 function renderTable(s) {
   var Y = parseInt(document.getElementById('inp-years').value) || 20;
@@ -563,15 +565,8 @@ function fetchFX() {
     });
 }
 
-document.getElementById('rate-inp').addEventListener('input', function() {
-  document.getElementById('inp-init').value    = fmtMan(usdInit);
-  document.getElementById('inp-monthly').value = fmtMan(usdMonthly);
-  document.getElementById('inp-withdraw').value= fmtMan(usdWithdraw);
-  renderAll(); update();
-});
-
 // ═══════════════════════════════════════════
-//  TICKER FETCH
+//  TICKER FETCH (안정성 강화)
 // ═══════════════════════════════════════════
 document.getElementById('ticker-input').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') fetchTicker();
@@ -599,7 +594,6 @@ function buildUrls(ticker, yrs) {
   var urls = [];
   for (var ei = 0; ei < ENDPOINTS.length; ei++) {
     var base = ENDPOINTS[ei] + encodeURIComponent(ticker) + sfx;
-    urls.push(base);  
     for (var pi = 0; pi < PROXIES.length; pi++) {
       urls.push(PROXIES[pi](base));
     }
@@ -638,8 +632,8 @@ function tryUrlFast(urls) {
     });
 
     setTimeout(function() {
-      if (!resolved) reject(new Error('응답 지연 (8초 초과)'));
-    }, 8000);
+      if (!resolved) reject(new Error('응답 지연 (10초 초과) - 다시 시도해주세요.'));
+    }, 10000);
   });
 }
 
@@ -677,7 +671,7 @@ function fetchTicker() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span>';
   document.getElementById('sb-name-row').style.display = 'none';
-  setSt('search-st', '<span class="spin"></span> 검색 중 (' + ticker + ')…', 'ld');
+  setSt('search-st', '<span class="spin"></span> 데이터 검색 중…', 'ld');
 
   tryUrlFast(buildUrls(ticker, yrs))
     .then(function(data) {
@@ -739,15 +733,15 @@ function fetchTicker() {
       document.getElementById('tick-yr').textContent       = '(' + yrs + '년 기준)';
       document.getElementById('sb-name-row').style.display = 'block';
 
-      document.getElementById('sl-growth').value  = Math.min(30,  Math.max(-15, parseFloat(pCagr.toFixed(1))));
+      document.getElementById('sl-growth').value  = Math.min(50,  Math.max(-25, parseFloat(pCagr.toFixed(1))));
       document.getElementById('sl-dyield').value  = Math.min(100, Math.max(0,   parseFloat(ttmY.toFixed(2))));
-      document.getElementById('sl-dgrowth').value = Math.min(30,  Math.max(-5,  parseFloat(dCagr.toFixed(1))));
+      document.getElementById('sl-dgrowth').value = Math.min(50,  Math.max(-20, parseFloat(dCagr.toFixed(1))));
       ['growth','yield','dgrowth'].forEach(function(k) {
         document.getElementById('badge-' + k).style.display = 'inline-block';
       });
 
-      // [핵심 수정] 이전 버전에서 자동으로 인출액을 입력하여 원금을 갉아먹던 문제 삭제. 무조건 0으로 유지.
-      document.getElementById('inp-withdraw').value = fmtMan(usdWithdraw);
+      // (중요 수정) 기존 자동 인출액 채우는 로직 삭제. 원금 깎임 방지
+      // document.getElementById('inp-withdraw').value = ... (삭제됨)
 
       setSt('search-st',
         '✓ ' + name.slice(0, 20)
@@ -759,7 +753,7 @@ function fetchTicker() {
       update();
     })
     .catch(function(e) {
-      setSt('search-st', '⚠ 실패: ' + e.message + ' — 다른 티커나 시장을 시도해보세요', 'err');
+      setSt('search-st', '⚠ 실패: ' + e.message, 'err');
     })
     .then(function() {
       btn.disabled = false;
@@ -768,8 +762,14 @@ function fetchTicker() {
 }
 
 // ═══════════════════════════════════════════
-//  INPUT LISTENERS
+//  INPUT LISTENERS & TOGGLES
 // ═══════════════════════════════════════════
+document.getElementById('rate-inp').addEventListener('input', function() {
+  document.getElementById('inp-init').value    = fmtMan(usdInit);
+  document.getElementById('inp-monthly').value = fmtMan(usdMonthly);
+  document.getElementById('inp-withdraw').value= fmtMan(usdWithdraw);
+  renderAll(); update();
+});
 document.getElementById('inp-init').addEventListener('input', function() {
   usdInit = manToUsd(parseFloat(this.value) || 0); update();
 });
@@ -785,33 +785,53 @@ document.getElementById('inp-years').addEventListener('input', function() {
   update();
 });
 ['sl-growth','sl-dyield','sl-dgrowth'].forEach(function(id) {
-  document.getElementById(id).addEventListener('input', update);
+  document.getElementById(id).addEventListener('input', function() {
+      // 슬라이더 조작 시 커스텀 모드로 자동 변경 안함. 값만 반영
+      update();
+  });
 });
 
-// ═══════════════════════════════════════════
-//  TOGGLES
-// ═══════════════════════════════════════════
-function setDrip(v) {
-  drip = v;
-  document.getElementById('btn-drip-on').className  = 'tbtn' + (v  ? ' on' : '');
-  document.getElementById('btn-drip-off').className = 'tbtn' + (!v ? ' on' : '');
-  document.getElementById('wdraw-row').className    = 'wdraw' + (v ? '' : ' show');
+function toggleDrip() {
+  drip = !drip;
+  document.getElementById('btn-drip-toggle').innerText = drip ? '재투자' : '현금수령';
+  document.getElementById('btn-drip-toggle').className = 'tbtn' + (drip ? ' on' : '');
+  document.getElementById('wdraw-row').className       = 'wdraw' + (drip ? '' : ' show');
+  
+  // 현금수령 모드라도 사용자가 인출액을 적지 않으면 0으로 유지
+  usdWithdraw = manToUsd(parseFloat(document.getElementById('inp-withdraw').value) || 0);
   update();
 }
 
-function setTax(v) {
-  applyTax = v;
-  document.getElementById('btn-tax-on').className  = 'tbtn' + (v  ? ' on' : '');
-  document.getElementById('btn-tax-off').className = 'tbtn' + (!v ? ' on' : '');
+function toggleTax() {
+  applyTax = !applyTax;
+  document.getElementById('btn-tax-toggle').innerText = applyTax ? '세금: 반영(15%)' : '세금: 미반영';
+  document.getElementById('btn-tax-toggle').className = 'tbtn' + (applyTax ? ' on' : '');
   update();
 }
 
 function setScenario(s) {
-  ['bear','base','bull'].forEach(function(id) { document.getElementById('btn-' + id).className = 'tbtn ' + id; });
+  currentScenario = s;
+  ['bear','base','bull','custom'].forEach(function(id) { document.getElementById('btn-' + id).className = 'tbtn ' + id; });
   document.getElementById('btn-' + s).className = 'tbtn ' + s + ' on';
   document.getElementById('badge-growth').style.display = 'none';
-  document.getElementById('sl-growth').value = { bear:0, base:6, bull:10 }[s];
+  
+  var cInp = document.getElementById('inp-custom-rate');
+  if (s === 'custom') {
+    cInp.style.display = 'inline-block';
+    document.getElementById('sl-growth').value = cInp.value;
+  } else {
+    cInp.style.display = 'none';
+    document.getElementById('sl-growth').value = { bear:0, base:6, bull:10 }[s];
+  }
   update();
+}
+
+function updateCustomScenario() {
+  if(currentScenario === 'custom') {
+     var val = parseFloat(document.getElementById('inp-custom-rate').value) || 0;
+     document.getElementById('sl-growth').value = val;
+     update();
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -854,7 +874,6 @@ function update() {
   for (var m = 0; m <= totalSteps; m++) {
     if (m > 0) {
       price *= (1 + mG) * (1 - EXP / 12);
-      
       if (M > 0) { shares += M / price; inv += M; }
       
       if (m % 3 === 0) {
@@ -869,6 +888,7 @@ function update() {
         }
       }
       
+      // 인출액이 남아있는 현금보다 크면 주식을 팔아서 충당 (W가 0이면 발동 안 함)
       if (!drip && W > 0) {
         if (cash >= W) {
           cash -= W;
@@ -910,7 +930,7 @@ function update() {
       dA.push(Math.round(dChart)); 
       gA.push(Math.round(gChart));
 
-      // [핵심 수정] 1년 계산시 1개월 단위로 모든 항목이 누락없이 나타나도록 조건 변경
+      // 1년 계산 시 1~12개월 빠짐없이 기록
       var shouldRecord = isMonthly
         ? true 
         : (step > 0 && (step % 5 === 0 || step === Y || step === 1 || step === 3));
@@ -966,14 +986,14 @@ function update() {
 // ═══════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════
-setScenario('bull');
+setScenario('base');
 setMode('krw');
 
 function initDefaults(fx) {
   var rate = fx || getFX();
   usdInit     = 100 * 10000 / rate;  
   usdMonthly  = 0;
-  usdWithdraw = 0;
+  usdWithdraw = 0; 
   document.getElementById('inp-init').value    = '100.0';
   document.getElementById('inp-monthly').value = '0.0';
   document.getElementById('inp-withdraw').value= '0.0';
