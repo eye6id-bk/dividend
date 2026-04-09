@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f4f6fb">
-<title>배당 복리 계산기 v3.1 (에러 해결 및 최적화)</title>
+<title>배당 복리 계산기 v3.3 (상장일 자동추적)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root{
@@ -75,7 +75,7 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .inv-col:last-child{border-right:none;}
 .inv-lbl{font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;}
 .inv-row{display:flex;align-items:baseline;gap:3px;}
-.inv-inp{background:transparent;border:none;border-bottom:2px solid var(--b2);outline:none;font-size:15px;font-weight:800;font-family:monospace;color:var(--blue);width:100%;padding:2px 0 3px;-webkit-appearance:none;}
+.inv-inp{background:transparent;border:none;border-bottom:2px solid var(--b2);outline:none;font-size:15px;font-weight:800;font-family:monospace;color:var(--blue);width:100%;padding:2px 0 3px;-webkit-appearance:none;transition:border-color .2s;}
 .inv-inp:focus{border-bottom-color:var(--blue);}
 .period-inp{background:transparent;border:none;border-bottom:2px solid var(--b2);outline:none;font-size:15px;font-weight:800;font-family:monospace;color:var(--t1);width:38px;padding:2px 0 3px;-webkit-appearance:none;}
 .period-inp:focus{border-bottom-color:var(--blue);}
@@ -141,6 +141,7 @@ td:first-child{text-align:left;color:var(--t2);font-family:inherit;font-size:11p
 .td2{display:block;font-size:10px;color:var(--t3);margin-top:1px;}
 tr:last-child td{border-bottom:none;}
 tr:nth-child(even) td{background:var(--card2);}
+tr.highlight td {background:var(--blue-l); color:var(--blue); font-weight:700;} 
 
 .spin{display:inline-block;width:12px;height:12px;border:2.5px solid rgba(37,99,235,.18);border-top-color:var(--blue);border-radius:50%;animation:sp .5s linear infinite;flex-shrink:0;vertical-align:middle;}
 @keyframes sp{to{transform:rotate(360deg);}}
@@ -152,7 +153,7 @@ tr:nth-child(even) td{background:var(--card2);}
 
 <div class="card">
   <div class="top-row">
-    <input class="ticker-inp" id="ticker-input" type="text" value="SCHD" maxlength="14"
+    <input class="ticker-inp" id="ticker-input" type="text" value="JEPQ" maxlength="14"
       autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="TICKER / 종목명">
     <div class="price-box">
       <div class="price-n" id="hdr-price">$30.58</div>
@@ -283,7 +284,7 @@ tr:nth-child(even) td{background:var(--card2);}
   </div>
   <div class="sl-b">
     <div class="sl-top">
-      <span class="sl-lbl">연 배당성장률(DPS) <span class="abadge" id="badge-dgrowth" style="display:inline-block; background:var(--blue); color:#fff">DB 확정값</span></span>
+      <span class="sl-lbl">연 배당성장률(DPS) <span class="abadge" id="badge-dgrowth" style="display:inline-block; background:var(--blue); color:#fff">계산값</span></span>
       <span class="sl-val green" id="o-dgrowth">10.4%</span>
     </div>
     <input type="range" id="sl-dgrowth" min="-20" max="50" step="0.5" value="10.4">
@@ -331,21 +332,15 @@ tr:nth-child(even) td{background:var(--card2);}
   </div>
 </div>
 
-<p class="disc">v3.1 · 단일통신 최적화(에러/블락 완전차단) · 확정 DB 매핑</p>
+<p class="disc">v3.3 · 커버드콜 0% 강제 해제 · 상장일 자동추적(Fallback) 적용</p>
 </div>
 
 <script>
 // ═══════════════════════════════════════════
-//  API KEYS & ORACLE DB
+//  ORACLE DB (커버드콜 삭제, 정상 ETF만 유지)
 // ═══════════════════════════════════════════
-var FMP_KEY     = 'lJFkBEpmYTfBj193hH41dXeF5ncNCWPV';
-var POLYGON_KEY = 'qtiCx400AQN_D1WQeMzmjA1v84vvSUlQ';
-var AV_KEY      = 'O87BIHD989P3Q2VQ';
-
 const KNOWN_DIVIDEND_METRICS = {
   'SCHD':  { divFreq: 'Q', cagr: { 1: 3.7,  3: 8.5,  5: 11.8, 10: 10.4 } },
-  'JEPI':  { divFreq: 'M', cagr: { 1: 0.0,  3: 0.0,  5: 0.0,  10: 0.0  } },
-  'JEPQ':  { divFreq: 'M', cagr: { 1: 0.0,  3: 0.0,  5: 0.0,  10: 0.0  } },
   'O':     { divFreq: 'M', cagr: { 1: 3.0,  3: 3.2,  5: 3.6,  10: 4.2  } },
   'KO':    { divFreq: 'Q', cagr: { 1: 4.6,  3: 4.6,  5: 3.8,  10: 5.1  } },
   'PEP':   { divFreq: 'Q', cagr: { 1: 10.0, 3: 7.2,  5: 6.8,  10: 7.6  } },
@@ -363,13 +358,20 @@ const KNOWN_DIVIDEND_METRICS = {
 };
 
 // ═══════════════════════════════════════════
-//  STATE 
+//  STATE & API KEYS
 // ═══════════════════════════════════════════
+var FMP_KEY     = 'lJFkBEpmYTfBj193hH41dXeF5ncNCWPV';
+var POLYGON_KEY = 'qtiCx400AQN_D1WQeMzmjA1v84vvSUlQ';
+var ENDPOINTS = ['https://query1.finance.yahoo.com/v8/finance/chart/', 'https://query2.finance.yahoo.com/v8/finance/chart/'];
+var PROXIES = [
+  function(u){ return 'https://corsproxy.io/?url=' + encodeURIComponent(u); },
+  function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+  function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }
+];
+
 var mode = 'krw', mkt = 'us', drip = true, applyTax = true; 
 var isMonthlyDiv = false, currentScenario = 'base', isKoreanStock = false;  
 var curP = 30.58, myChart = null;
-
-var usdInit = 100 * 10000 / 1450, usdMonthly = 0, usdWithdraw = 0; 
 var sim = {fin:0,inv:0,profit:0,annDiv:0,retPct:0,shares:0,rows:[],labels:[],pA:[],dA:[],gA:[]};
 
 var KR_STOCKS = {
@@ -404,8 +406,8 @@ function setSt(id, msg, cls) { var el=document.getElementById(id); el.className=
 // ═══════════════════════════════════════════
 //  UI INTERACTIONS
 // ═══════════════════════════════════════════
-function setMode(m) { if(isKoreanStock&&m==='usd')return; mode=m; document.getElementById('btn-usd').className='cur-btn'+(m==='usd'?' on':''); document.getElementById('btn-krw').className='cur-btn'+(m==='krw'?' on':''); renderAll(); }
-function setMkt(m) { mkt=m; ['us','ks','kq'].forEach(k=>document.getElementById('mkt-'+k).className='mkt-btn'+(k===m?' on':'')); document.getElementById('mkt-hint').textContent=MKT_HINTS[m]; document.getElementById('ticker-input').value=m==='us'?'SCHD':''; document.getElementById('ticker-input').focus(); }
+function setMode(m) { if(isKoreanStock&&m==='usd')return; mode=m; document.getElementById('btn-usd').className='cur-btn'+(m==='usd'?' on':''); document.getElementById('btn-krw').className='cur-btn'+(m==='krw'?' on':''); update(); }
+function setMkt(m) { mkt=m; ['us','ks','kq'].forEach(k=>document.getElementById('mkt-'+k).className='mkt-btn'+(k===m?' on':'')); document.getElementById('mkt-hint').textContent=MKT_HINTS[m]; document.getElementById('ticker-input').value=m==='us'?'JEPQ':''; document.getElementById('ticker-input').focus(); }
 
 function renderAll() {
   var s=sim;
@@ -415,23 +417,22 @@ function renderAll() {
   document.getElementById('c-divyr').textContent=fP(s.annDiv)+'/년'; document.getElementById('c-divyr-alt').textContent=fA(s.annDiv)+'/년';
   document.getElementById('c-shares').textContent=s.shares.toFixed(2)+' 주';
   var re=document.getElementById('c-ret'); re.textContent=fPct(s.retPct); re.style.color=s.retPct>=0?'var(--green)':'var(--red)';
-  document.getElementById('alt-init').textContent=fmtUSD(usdInit); document.getElementById('alt-monthly').textContent=fmtUSD(usdMonthly)+'/월';
-  renderTable(s);
-}
-
-function renderTable(s) {
+  
   var Y = parseInt(document.getElementById('inp-years').value)||20, monthly = (Y===1);
   document.getElementById('tbl-title').textContent = monthly ? '월별 상세' : '연도별 상세';
   document.getElementById('tbl-head').innerHTML = '<tr><th style="text-align:left">'+(monthly?'월':'시점')+'</th><th>주가</th><th>주수</th><th>평가금액</th><th>'+(drip?'배당누계(세후)':'잔여현금')+'</th><th>수익률</th><th>'+(monthly?'월배당':'연배당')+'</th></tr>';
   var h = '';
   for(var i=0; i<s.rows.length; i++){
-    var r=s.rows[i], rc=r.ret>=0?'var(--green)':'var(--red)', label=monthly?r.yr+'개월':r.yr+'년후';
-    h+='<tr><td>'+label+'</td><td>'+(isKoreanStock?'₩'+Math.round(r.price*getFX()).toLocaleString():'$'+r.price.toFixed(2))+'</td><td>'+r.shares.toFixed(1)+'</td><td style="font-weight:700;color:var(--blue)">'+fP(r.tv)+'<span class="td2">'+fA(r.tv)+'</span></td><td style="color:var(--green)">'+fP(r.da)+'<span class="td2">'+fA(r.da)+'</span></td><td style="font-weight:700;color:'+rc+'">'+fPct(r.ret)+'</td><td style="color:var(--green)">'+fP(r.ad)+'<span class="td2">'+fA(r.ad)+'</span></td></tr>';
+    var r=s.rows[i], rc=r.ret>=0?'var(--green)':'var(--red)';
+    var label = r.yr === 0 ? '시작(0년)' : (monthly ? r.yr+'개월' : r.yr+'년후');
+    var rowClass = r.yr === 0 ? ' class="highlight"' : '';
+    
+    h+='<tr'+rowClass+'><td>'+label+'</td><td>'+(isKoreanStock?'₩'+Math.round(r.price*getFX()).toLocaleString():'$'+r.price.toFixed(2))+'</td><td>'+r.shares.toFixed(1)+'</td><td style="font-weight:700;color:var(--blue)">'+fP(r.tv)+'<span class="td2">'+fA(r.tv)+'</span></td><td style="color:var(--green)">'+fP(r.da)+'<span class="td2">'+fA(r.da)+'</span></td><td style="font-weight:700;color:'+rc+'">'+fPct(r.ret)+'</td><td style="color:var(--green)">'+fP(r.ad)+'<span class="td2">'+fA(r.ad)+'</span></td></tr>';
   }
   document.getElementById('tbody').innerHTML=h;
 }
 
-function toggleDrip() { drip=!drip; var btn=document.getElementById('btn-drip-toggle'); btn.innerText=drip?'재투자':'현금수령'; btn.className='tbtn'+(drip?' on':''); document.getElementById('wdraw-row').className='wdraw'+(drip?'':' show'); usdWithdraw=manToUsd(parseFloat(document.getElementById('inp-withdraw').value)||0); update(); }
+function toggleDrip() { drip=!drip; var btn=document.getElementById('btn-drip-toggle'); btn.innerText=drip?'재투자':'현금수령'; btn.className='tbtn'+(drip?' on':''); document.getElementById('wdraw-row').className='wdraw'+(drip?'':' show'); update(); }
 function toggleTax() { applyTax=!applyTax; var btn=document.getElementById('btn-tax-toggle'); btn.innerText=applyTax?'세금: 반영':'세금: 미반영'; btn.className='tbtn'+(applyTax?' on':''); update(); }
 function toggleFreq() { isMonthlyDiv=!isMonthlyDiv; var btn=document.getElementById('btn-freq-toggle'); btn.innerText=isMonthlyDiv?'주기: 매월':'주기: 분기'; btn.className='tbtn'+(isMonthlyDiv?' on':''); update(); }
 
@@ -447,7 +448,60 @@ function toggleScenario() {
 function updateCustomScenario() { if(scArr[scIdx].id==='custom'){ document.getElementById('sl-growth').value=parseFloat(document.getElementById('inp-custom-rate').value)||0; update(); } }
 
 // ═══════════════════════════════════════════
-//  FETCH LOGIC (안전한 순차 호출 방식)
+//  [핵심] 동적 TTM 배당성장률 계산기 (상장일 자동 추적)
+// ═══════════════════════════════════════════
+function calculateDynamicTTMCAGR(divList, targetYears) {
+  if (!divList || divList.length === 0) return { cagr: 5.0, span: targetYears, isFallback: false };
+
+  divList.sort((a, b) => a.dateSec - b.dateSec);
+
+  var now = Date.now() / 1000;
+  var oneYearSec = 365.25 * 86400;
+
+  var currentTTM = 0;
+  var currentStart = now - oneYearSec;
+  divList.forEach(d => { if (d.dateSec >= currentStart && d.dateSec <= now) currentTTM += d.amount; });
+
+  var pastTTM = 0;
+  var pastEnd = now - (targetYears * oneYearSec);
+  var pastStart = pastEnd - oneYearSec;
+
+  divList.forEach(d => { if (d.dateSec >= pastStart && d.dateSec < pastEnd) pastTTM += d.amount; });
+
+  var actualSpan = targetYears;
+  var isFallback = false;
+
+  // 만약 10년을 요구했는데 ETF가 출시된 지 2년밖에 안 돼서 10년 전 TTM 값이 0이라면?
+  // -> 가장 오래된 12개월(출시 후 1년)을 시작점(과거 TTM)으로 잡음.
+  if (pastTTM === 0) {
+    var oldestDate = divList[0].dateSec;
+    
+    // 데이터가 1년도 채 안 쌓였다면 에러 반환
+    if (now - oldestDate < oneYearSec) {
+        return { cagr: 0.0, span: 0, isFallback: true };
+    }
+    
+    pastStart = oldestDate;
+    pastEnd = oldestDate + oneYearSec;
+    divList.forEach(d => { if (d.dateSec >= pastStart && d.dateSec < pastEnd) pastTTM += d.amount; });
+    
+    // 예: 출시된 지 2.5년 지났다면, span은 1.5년이 됨.
+    actualSpan = (now - pastEnd) / oneYearSec;
+    isFallback = true;
+  }
+
+  // TTM CAGR 공식
+  if (pastTTM > 0 && currentTTM > 0 && actualSpan > 0) {
+    var cagr = (Math.pow(currentTTM / pastTTM, 1 / actualSpan) - 1) * 100;
+    if (isNaN(cagr) || !isFinite(cagr) || cagr > 150 || cagr < -50) return { cagr: 5.0, span: actualSpan, isFallback: isFallback };
+    return { cagr: safeNum(cagr, 5.0), span: actualSpan, isFallback: isFallback };
+  }
+
+  return { cagr: 5.0, span: actualSpan, isFallback: isFallback };
+}
+
+// ═══════════════════════════════════════════
+//  FETCH LOGIC
 // ═══════════════════════════════════════════
 function fetchFX() {
   var btn=document.getElementById('btn-fx'), txt=document.getElementById('btn-fx-txt');
@@ -455,8 +509,8 @@ function fetchFX() {
   return fetch('https://open.er-api.com/v6/latest/USD').then(r=>r.json()).then(d=>{
     var rate=Math.round(d.rates.KRW); document.getElementById('rate-inp').value=rate;
     setSt('fx-st','✓ 실시간 환율 적용','ok'); txt.textContent='현재환율'; setTimeout(()=>setSt('fx-st',''),3000);
-    btn.disabled=false; return rate;
-  }).catch(()=>{ txt.textContent='현재환율'; btn.disabled=false; return getFX(); });
+    btn.disabled=false; update(); return rate;
+  }).catch(()=>{ txt.textContent='현재환율'; btn.disabled=false; update(); return getFX(); });
 }
 
 document.getElementById('ticker-input').addEventListener('keydown', e => { if(e.key==='Enter') fetchTicker(); });
@@ -470,69 +524,45 @@ function resolveKorean(raw) {
   return {code:raw.toUpperCase(), mktSuffix:MKT_SUFFIX[mkt]||'.KS'};
 }
 
-// 1순위: FMP (가장 안정적, 동시호출 배제)
+// 1. FMP
 async function tryFMP(ticker) {
   var qRes = await fetch(`https://financialmodelingprep.com/api/v3/quote/${ticker}?apikey=${FMP_KEY}`).then(r=>r.json());
   if(!qRes || qRes.length===0) throw new Error("FMP Quote Failed");
-  var price = qRes[0].price;
-  var name = qRes[0].name || ticker;
+  var price = qRes[0].price, name = qRes[0].name || ticker;
 
-  // 배당 데이터는 에러나도 주가만으로 통과시킴
-  var ttmYield = 0;
   var dRes = await fetch(`https://financialmodelingprep.com/api/v3/historical-price-full/stock_dividend/${ticker}?apikey=${FMP_KEY}`).then(r=>r.json()).catch(()=>null);
+  var stdDivs = [];
   if(dRes && dRes.historical && dRes.historical.length > 0) {
-    var now = new Date();
-    var oneYearAgo = new Date(); oneYearAgo.setFullYear(now.getFullYear()-1);
-    var ttmDiv = 0;
-    dRes.historical.forEach(d => {
-       var dDate = new Date(d.date);
-       if(dDate >= oneYearAgo && dDate <= now) ttmDiv += d.adjDividend;
-    });
-    if(price > 0) ttmYield = (ttmDiv / price) * 100;
+    stdDivs = dRes.historical.map(d=>({ dateSec: Date.parse(d.date)/1000, amount: d.adjDividend }));
   }
-  return { price: price, name: name, yield: ttmYield, src: "FMP" };
+  return { price: price, name: name, stdDivs: stdDivs, src: "FMP" };
 }
 
-// 2순위: Polygon (FMP 실패시에만 호출)
+// 2. Polygon
 async function tryPolygon(ticker) {
   var qRes = await fetch(`https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${POLYGON_KEY}`).then(r=>r.json());
   if(!qRes.results || qRes.results.length===0) throw new Error("Polygon Quote Failed");
   var price = qRes.results[0].c;
 
-  var ttmYield = 0;
   var dRes = await fetch(`https://api.polygon.io/v3/reference/dividends?ticker=${ticker}&apiKey=${POLYGON_KEY}&limit=50`).then(r=>r.json()).catch(()=>null);
+  var stdDivs = [];
   if(dRes && dRes.results && dRes.results.length > 0) {
-    var nowStr = new Date().toISOString().split('T')[0];
-    var past = new Date(); past.setFullYear(past.getFullYear()-1);
-    var pastStr = past.toISOString().split('T')[0];
-    
-    var ttmDiv = 0;
-    dRes.results.forEach(d => {
-       if(d.pay_date >= pastStr && d.pay_date <= nowStr) ttmDiv += d.cash_amount;
-    });
-    if(price > 0) ttmYield = (ttmDiv / price) * 100;
+    stdDivs = dRes.results.map(d=>({ dateSec: Date.parse(d.pay_date)/1000, amount: d.cash_amount }));
   }
-  return { price: price, name: ticker, yield: ttmYield, src: "Massive" };
+  return { price: price, name: ticker, stdDivs: stdDivs, src: "Massive" };
 }
 
-// 3순위: Yahoo Fallback
+// 3. Yahoo
 async function tryYahoo(ticker) {
-  var url = `https://api.allorigins.win/raw?url=` + encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1mo&range=2y&events=div`);
+  var url = `https://api.allorigins.win/raw?url=` + encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1mo&range=max&events=div`);
   var data = await fetch(url).then(r=>r.json());
   
   var r = data.chart.result[0], meta = r.meta||{}, divEvt=r.events?.dividends||{};
   var price = meta.regularMarketPrice || meta.chartPreviousClose || 30;
   var name = meta.longName || meta.shortName || ticker;
 
-  var ttmYield = 0;
-  var nowS = Date.now()/1000;
-  var ttmDiv = 0;
-  Object.values(divEvt).forEach(d => {
-      if(d.date >= nowS - 31557600) ttmDiv += d.amount;
-  });
-  if(price > 0) ttmYield = (ttmDiv / price) * 100;
-
-  return { price: price, name: name, yield: ttmYield, src: "Yahoo" };
+  var stdDivs = Object.values(divEvt).map(d=>({ dateSec: d.date, amount: d.amount }));
+  return { price: price, name: name, stdDivs: stdDivs, src: "Yahoo" };
 }
 
 async function fetchTicker() {
@@ -556,17 +586,17 @@ async function fetchTicker() {
   var result = null;
   
   if (!iKorean) {
-      setSt('search-st', '<span class="spin"></span> FMP API 데이터 호출 중...', 'ld');
-      try { result = await tryFMP(ticker); } catch(e) { console.log(e); }
+      setSt('search-st', '<span class="spin"></span> FMP 데이터 호출 중...', 'ld');
+      try { result = await tryFMP(ticker); } catch(e) {}
       
       if(!result) {
-          setSt('search-st', '<span class="spin"></span> Massive API 우회 호출 중...', 'ld');
-          try { result = await tryPolygon(ticker); } catch(e) { console.log(e); }
+          setSt('search-st', '<span class="spin"></span> Massive 우회 호출 중...', 'ld');
+          try { result = await tryPolygon(ticker); } catch(e) {}
       }
   }
   
   if(!result) {
-      setSt('search-st', '<span class="spin"></span> Yahoo 데이터 우회 호출 중...', 'ld');
+      setSt('search-st', '<span class="spin"></span> Yahoo 우회 호출 중...', 'ld');
       try { result = await tryYahoo(ticker); } 
       catch(e) { 
           setSt('search-st', '⚠ 통신 지연. 버튼을 다시 눌러주세요.', 'err'); 
@@ -575,9 +605,20 @@ async function fetchTicker() {
       }
   }
 
-  // ── DB 매핑 및 세팅 ──
-  var pCagr = 6.0; // 주가 상승률 기본값
-  var dCagr = 5.0; // 배당 성장률 기본값
+  // ── 공통 연산 ──
+  var nowS = Date.now()/1000;
+  var ttmY = 0;
+  if (result.stdDivs.length > 0) {
+      var ttmDiv = 0;
+      result.stdDivs.forEach(d => { if(d.dateSec >= nowS - 31557600) ttmDiv += d.amount; });
+      if (result.price > 0) ttmY = (ttmDiv / result.price) * 100;
+  }
+  
+  var maxP=0, countY={}; result.stdDivs.forEach(d=>{ var y=new Date(d.dateSec*1000).getFullYear(); countY[y]=(countY[y]||0)+1; });
+  Object.values(countY).forEach(c=>{if(c>maxP)maxP=c;});
+  var isMonthlyStock = (maxP > 6);
+
+  var dCagr = 5.0; 
   var badgeText = "계산값";
   var badgeBg = "var(--blue-l)";
   var badgeColor = "var(--blue)";
@@ -590,7 +631,22 @@ async function fetchTicker() {
      badgeColor = "#fff";
      isMonthlyDiv = (dbData.divFreq === 'M');
   } else {
-     isMonthlyDiv = false; // 기본 분기
+     // DB에 없으면 상장일 자동추적(Dynamic Fallback) 알고리즘 가동!
+     var dResObj = calculateDynamicTTMCAGR(result.stdDivs, yrs);
+     dCagr = dResObj.cagr;
+     
+     if (dResObj.isFallback && dResObj.span > 0) {
+         badgeText = "상장후 " + dResObj.span.toFixed(1) + "년";
+         badgeBg = "var(--amber)";
+         badgeColor = "#fff";
+     } else if (dResObj.isFallback && dResObj.span === 0) {
+         badgeText = "데이터 부족";
+         badgeBg = "var(--red)";
+         badgeColor = "#fff";
+     } else {
+         badgeText = yrs + "년 TTM";
+     }
+     isMonthlyDiv = isMonthlyStock;
   }
 
   curP = iKorean ? result.price / getFX() : result.price;
@@ -599,15 +655,15 @@ async function fetchTicker() {
   document.getElementById('hdr-price').textContent = iKorean ? '₩'+Math.round(result.price).toLocaleString('ko-KR') : '$'+curP.toFixed(2);
   document.getElementById('hdr-date').textContent = new Date().toLocaleDateString('ko-KR');
 
-  document.getElementById('ph-yield').textContent = result.yield.toFixed(2)+'%';
-  document.getElementById('ph-cagr').textContent  = fPct(pCagr);
+  document.getElementById('ph-yield').textContent = ttmY.toFixed(2)+'%';
+  document.getElementById('ph-cagr').textContent  = "+6.0%"; // 주가상승률 기본 6 고정
   var nName = result.name;
   document.getElementById('tick-fullname').textContent = nName.length>30 ? nName.slice(0,30)+'…' : nName;
   document.getElementById('tick-yr').textContent = '('+yrs+'년 기준)';
   document.getElementById('sb-name-row').style.display = 'block';
 
-  document.getElementById('sl-growth').value  = pCagr;
-  document.getElementById('sl-dyield').value  = Math.min(100,Math.max(0, result.yield));
+  document.getElementById('sl-growth').value  = 6.0;
+  document.getElementById('sl-dyield').value  = Math.min(100,Math.max(0, ttmY));
   document.getElementById('sl-dgrowth').value = dCagr;
 
   if (scArr[scIdx].id !== 'custom') document.getElementById('badge-growth').style.display='inline-block';
@@ -623,71 +679,107 @@ async function fetchTicker() {
   btnFreq.innerText = isMonthlyDiv ? '주기: 매월' : '주기: 분기';
   btnFreq.className = 'tbtn'+(isMonthlyDiv?' on':'');
 
-  setSt('search-st', '✓ 호출 완료 ['+result.src+'] | TTM 배당 '+result.yield.toFixed(2)+'%', 'ok');
+  setSt('search-st', '✓ 호출 완료 ['+result.src+'] | TTM 배당 '+ttmY.toFixed(2)+'%', 'ok');
   update();
   btn.disabled=false; btn.innerHTML='검색';
 }
 
 // ═══════════════════════════════════════════
-//  INPUT LISTENERS & CORE CALCULATION
+//  DYNAMIC STATE & CALCULATION
 // ═══════════════════════════════════════════
-document.getElementById('inp-init').addEventListener('input', function() { usdInit=manToUsd(parseFloat(this.value)||0); update(); });
-document.getElementById('inp-monthly').addEventListener('input', function() { usdMonthly=manToUsd(parseFloat(this.value)||0); update(); });
-document.getElementById('inp-withdraw').addEventListener('input', function() { usdWithdraw=manToUsd(parseFloat(this.value)||0); update(); });
-document.getElementById('inp-years').addEventListener('input', function() { var Y=parseInt(this.value)||1; document.getElementById('period-months').textContent=(Y*12).toLocaleString()+'개월'; update(); });
-['sl-growth','sl-dyield','sl-dgrowth'].forEach(function(id) { document.getElementById(id).addEventListener('input', function(){ update(); }); });
+['inp-init', 'inp-monthly', 'inp-withdraw', 'rate-inp', 'inp-years', 'sl-growth', 'sl-dyield', 'sl-dgrowth'].forEach(function(id) { 
+  document.getElementById(id).addEventListener('input', function() {
+    if (this.id === 'inp-years') {
+      var Y = parseInt(this.value)||1;
+      document.getElementById('period-months').textContent = (Y*12).toLocaleString()+'개월';
+    }
+    update(); 
+  }); 
+});
 
 function update() {
-  var P=usdInit, M=usdMonthly, W=drip?0:usdWithdraw, Y=parseInt(document.getElementById('inp-years').value)||20;
+  var fx = getFX();
+  var initKRW = parseFloat(document.getElementById('inp-init').value) || 0;
+  var monthlyKRW = parseFloat(document.getElementById('inp-monthly').value) || 0;
+  var withdrawKRW = parseFloat(document.getElementById('inp-withdraw').value) || 0;
   
-  var aG=safeNum(parseFloat(document.getElementById('sl-growth').value), 6)/100;
-  var dY=safeNum(parseFloat(document.getElementById('sl-dyield').value), 3)/100;
-  var dG=safeNum(parseFloat(document.getElementById('sl-dgrowth').value), 5)/100;
+  var P = (initKRW * 10000) / fx;
+  var M = (monthlyKRW * 10000) / fx;
+  var W = drip ? 0 : ((withdrawKRW * 10000) / fx);
+  var Y = parseInt(document.getElementById('inp-years').value) || 20;
   
-  var mG=Math.pow(1+aG, 1/12)-1, mDG=Math.pow(1+dG, 1/12)-1, EXP=0.0006;
-  var taxRate=applyTax?(mkt==='us'?0.15:0.154):0;
+  var aG = safeNum(parseFloat(document.getElementById('sl-growth').value), 6) / 100;
+  var dY = safeNum(parseFloat(document.getElementById('sl-dyield').value), 3) / 100;
+  var dG = safeNum(parseFloat(document.getElementById('sl-dgrowth').value), 5) / 100;
+  
+  var mG = Math.pow(1 + aG, 1/12) - 1;
+  var mDG = Math.pow(1 + dG, 1/12) - 1;
+  var EXP = 0.0006;
+  var taxRate = applyTax ? (mkt === 'us' ? 0.15 : 0.154) : 0;
 
-  document.getElementById('o-growth').textContent=(aG*100).toFixed(1)+'%'; document.getElementById('o-dyield').textContent=(dY*100).toFixed(2)+'%'; document.getElementById('o-dgrowth').textContent=(dG*100).toFixed(1)+'%';
+  document.getElementById('o-growth').textContent = (aG * 100).toFixed(1) + '%';
+  document.getElementById('o-dyield').textContent = (dY * 100).toFixed(2) + '%';
+  document.getElementById('o-dgrowth').textContent = (dG * 100).toFixed(1) + '%';
+  document.getElementById('alt-init').textContent = fmtUSD(P);
+  document.getElementById('alt-monthly').textContent = fmtUSD(M) + '/월';
 
-  var isMonthly=(Y===1), price=safeNum(curP,30), shares=price>0?P/price:0, inv=P, cash=0;
-  var annualDPS=price*dY, cumDiv=0, totalWithdrawn=0, labels=[], pA=[], dA=[], gA=[], rows=[];
-  var totalSteps = Y*12;
+  var isMonthly = (Y === 1);
+  var price = safeNum(curP, 30);
+  
+  var shares = price > 0 ? P / price : 0;
+  var inv = P, cash = 0;
+  var annualDPS = price * dY;
+  
+  var cumDiv = 0, totalWithdrawn = 0;
+  var labels = [], pA = [], dA = [], gA = [], rows = [];
+  var totalSteps = Y * 12;
 
-  for (var m=0; m<=totalSteps; m++) {
-    if (m>0) {
-      price*=(1+mG)*(1-EXP/12);
-      annualDPS*=(1+mDG);
-      if(M>0){ shares+=M/price; inv+=M; }
+  for (var m = 0; m <= totalSteps; m++) {
+    if (m > 0) {
+      price *= (1 + mG) * (1 - EXP / 12);
+      annualDPS *= (1 + mDG);
+      if (M > 0) { shares += M / price; inv += M; }
       
-      var isPayout = isMonthlyDiv ? true : (m%3===0);
+      var isPayout = isMonthlyDiv ? true : (m % 3 === 0);
       if (isPayout) {
-        var pf = isMonthlyDiv?12:4, grossDiv=shares*(annualDPS/pf), netDiv=grossDiv*(1-taxRate);      
-        cumDiv+=netDiv; 
-        if(drip) shares+=netDiv/price; else cash+=netDiv; 
+        var pf = isMonthlyDiv ? 12 : 4;
+        var grossDiv = shares * (annualDPS / pf);      
+        var netDiv = grossDiv * (1 - taxRate);      
+        cumDiv += netDiv; 
+        if (drip) shares += netDiv / price; else cash += netDiv; 
       }
       
-      if (!drip && W>0) {
-        if(cash>=W){ cash-=W; totalWithdrawn+=W; } 
+      if (!drip && W > 0) {
+        if (cash >= W) { cash -= W; totalWithdrawn += W; } 
         else {
-          var sf=W-cash; totalWithdrawn+=cash; cash=0;
-          var sts=sf/price; 
-          if(shares>sts){ shares-=sts; totalWithdrawn+=sf; } else { totalWithdrawn+=(shares*price); shares=0; }
+          var sf = W - cash; totalWithdrawn += cash; cash = 0;
+          var sts = sf / price; 
+          if (shares > sts) { shares -= sts; totalWithdrawn += sf; } 
+          else { totalWithdrawn += (shares * price); shares = 0; }
         }
       }
     }
 
-    if (isMonthly || m%12===0) {
-      var step=isMonthly?m:m/12, tv=shares*price+cash, dChart=drip?cumDiv:cash, pChart=inv, gChart=tv-inv-dChart; 
-      var adVal = isMonthly ? (shares*annualDPS*(1-taxRate))/12 : (shares*annualDPS*(1-taxRate));
+    if (isMonthly || m % 12 === 0) {
+      var step = isMonthly ? m : m / 12;
+      var tv = shares * price + cash; 
+      var dChart = drip ? cumDiv : cash; 
+      var pChart = inv; 
+      var gChart = tv - inv - dChart; 
+      var adVal = isMonthly ? (shares * annualDPS * (1 - taxRate)) / 12 : (shares * annualDPS * (1 - taxRate));
 
-      labels.push(isMonthly?step+'개월':step+'년'); pA.push(Math.round(pChart)); dA.push(Math.round(dChart)); gA.push(Math.round(gChart));
-      var shouldRec = isMonthly ? true : (step>0 && (step%5===0 || step===Y || step===1 || step===3));
-      if(shouldRec && step>0) rows.push({yr:step, price:price, shares:shares, tv:tv, inv:inv, da:dChart, ad:adVal, ret:inv>0?(tv+totalWithdrawn-inv)/inv*100:0});
+      labels.push(isMonthly ? step + '개월' : step + '년');
+      pA.push(Math.round(pChart)); dA.push(Math.round(dChart)); gA.push(Math.round(gChart));
+      
+      var shouldRec = isMonthly ? true : (step === 0 || step % 5 === 0 || step === Y || step === 1 || step === 3);
+      if (shouldRec) {
+        rows.push({yr: step, price: price, shares: shares, tv: tv, inv: inv, da: dChart, ad: adVal, ret: inv > 0 ? (tv + totalWithdrawn - inv) / inv * 100 : 0});
+      }
     }
   }
 
-  var finalTv=shares*price+cash; 
-  sim={fin:finalTv, inv:inv, profit:(finalTv+totalWithdrawn)-inv, annDiv:shares*annualDPS*(1-taxRate), retPct:inv>0?((finalTv+totalWithdrawn)-inv)/inv*100:0, shares:shares, rows:rows, labels:labels, pA:pA, dA:dA, gA:gA};
+  var finalTv = shares * price + cash; 
+  sim = {fin: finalTv, inv: inv, profit: (finalTv + totalWithdrawn) - inv, annDiv: shares * annualDPS * (1 - taxRate), retPct: inv > 0 ? ((finalTv + totalWithdrawn) - inv) / inv * 100 : 0, shares: shares, rows: rows, labels: labels, pA: pA, dA: dA, gA: gA};
   renderAll();
 
   if(myChart){ myChart.data.labels=labels; myChart.data.datasets[0].data=gA; myChart.data.datasets[1].data=dA; myChart.data.datasets[2].data=pA; myChart.update(); } 
@@ -699,9 +791,21 @@ function update() {
   }
 }
 
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
 setMode('krw');
-function initDefaults(fx) { var rate=fx||getFX(); usdInit=100*10000/rate; usdMonthly=0; usdWithdraw=0; document.getElementById('inp-init').value='100.0'; document.getElementById('inp-monthly').value='0.0'; document.getElementById('inp-withdraw').value='0.0'; document.getElementById('inp-years').value='20'; document.getElementById('period-months').textContent='240개월'; renderAll(); update(); }
-fetchFX().then(function(rate){ initDefaults(rate); document.getElementById('ticker-input').value='SCHD'; }).catch(function(){ initDefaults(); document.getElementById('ticker-input').value='SCHD'; });
+function initDefaults(fx) { 
+  var rate=fx||getFX(); 
+  document.getElementById('rate-inp').value = rate;
+  document.getElementById('inp-init').value='100.0'; 
+  document.getElementById('inp-monthly').value='0.0'; 
+  document.getElementById('inp-withdraw').value='0.0'; 
+  document.getElementById('inp-years').value='20'; 
+  document.getElementById('period-months').textContent='240개월'; 
+  update(); 
+}
+fetchFX().then(function(rate){ initDefaults(rate); document.getElementById('ticker-input').value='JEPQ'; fetchTicker(); }).catch(function(){ initDefaults(); document.getElementById('ticker-input').value='JEPQ'; });
 </script>
 </body>
 </html>
